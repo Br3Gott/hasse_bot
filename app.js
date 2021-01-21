@@ -27,12 +27,13 @@ client.on('ready', () => {
 });
 
 client.on('message', async message => {
-    // Voice only works in guilds, if the message does not come from a guild,
-    // we ignore it
+    // Check if message is from guild(server) otherwise return;
     if (!message.guild) return;
 
+    //Check if message starts with configured prefix and is not from bot.
     if (!message.content.startsWith(prefix) || message.author.bot) return;
 
+    //Split message into variables.
     const args = message.content.slice(prefix.length).trim().split(' ');
     const command = args.shift().toLowerCase();
 
@@ -192,6 +193,7 @@ client.on('message', async message => {
     if (command === "stop") {
         message.member.voice.channel.leave();
     }
+
 });
 
 var times = [];
@@ -206,7 +208,7 @@ client.on('voiceStateUpdate', async function (data, newdata) {
 
         const username = client.users.cache.get(data.id).username;
 
-        //Switched Channel
+        //Switched voice hannel
         if (newdata.channelID != null && data.channelID != null) {
             console.log(username + ": Switched Channel");
         }
@@ -271,17 +273,9 @@ client.on('voiceStateUpdate', async function (data, newdata) {
 
     if (data.selfMute != newdata.selfMute && data.selfMute != null) {
 
-        const channelid = "800706486896558110"; //test
-        // const channelid = "239121698132066308"; //general
-
         const username = client.users.cache.get(data.id);
 
         if (newdata.selfMute == true) {
-
-            console.log("Muted!");
-
-            time.in = Date.now();
-            times[data.id] = time;
 
             if (data.member.voice.channel) {
                 const connection = await data.member.voice.channel.join();
@@ -291,60 +285,12 @@ client.on('voiceStateUpdate', async function (data, newdata) {
                     console.log('Finished playing and leaving voice');
                     data.member.voice.channel.leave();
                 });
-            } else {
-                console.log('Vart fan vill du att jag ska då?');
-            }
-
-            // client.channels.cache.get(channelid).send("Jahopp, @" + username.username + " vi vill ändå inte höra din skit...");
-            // data.("Jahopp, vi vill ändå inte höra din skit...");
+            } 
         }
 
-        if (newdata.selfMute == false) {
-            console.log("Unmuted!");
-
-            times[data.id].out = Date.now();
-
-            var diff = times[data.id].out - times[data.id].in;
-
-            var currentTime = db.get("users").find({
-                id: data.id
-            }).value();
-
-            if (currentTime == null) {
-                currDiff = diff;
-                db.get("users").push({
-                    id: data.id,
-                    time: diff
-                }).write();
-            } else {
-                var currDiff = currentTime.time + diff;
-                db.get("users").find({
-                    id: data.id
-                }).assign({
-                    time: currDiff
-                }).write();
-            }
-
-            var msec = diff;
-            var hh = Math.floor(msec / 1000 / 60 / 60);
-            msec -= hh * 1000 * 60 * 60;
-            var mm = Math.floor(msec / 1000 / 60);
-            msec -= mm * 1000 * 60;
-            var ss = Math.floor(msec / 1000);
-            msec -= ss * 1000;
-
-            console.log("Muted for: " + hh + "h " + mm + "m " + ss + "s.");
-
-            var msec = currDiff;
-            var hh = Math.floor(msec / 1000 / 60 / 60);
-            msec -= hh * 1000 * 60 * 60;
-            var mm = Math.floor(msec / 1000 / 60);
-            msec -= mm * 1000 * 60;
-            var ss = Math.floor(msec / 1000);
-            msec -= ss * 1000;
-
-            console.log("Total mute: " + hh + "h " + mm + "m " + ss + "s.");
-        }
+        // if (newdata.selfMute == false) {
+        //     console.log("Unmuted!");
+        // }
     }
 });
 
