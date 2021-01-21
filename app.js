@@ -23,7 +23,7 @@ const ytdl = require('ytdl-core');
 
 //App is ready
 client.on('ready', () => {
-    console.log(`App started! Connected as BOT:${client.user.tag}!`);
+    console.log(`App started! Connected as BOT:[${client.user.tag}]`);
 });
 
 client.on('message', async message => {
@@ -43,6 +43,38 @@ client.on('message', async message => {
 
     if (command === "mystats") {
 
+        if (times[message.author.id] != null) {
+
+            //Store time untill now
+            times[message.author.id].out = Date.now();
+
+            var diff = times[message.author.id].out - times[message.author.id].in;
+
+            var currentTime = db.get("users").find({
+                id: message.author.id
+            }).value();
+
+            if (currentTime == null) {
+                currDiff = diff;
+                db.get("users").push({
+                    id: message.author.id,
+                    name: message.author,
+                    time: diff
+                }).write();
+            } else {
+                var currDiff = currentTime.time + diff;
+                db.get("users").find({
+                    id: message.author.id
+                }).assign({
+                    time: currDiff
+                }).write();
+            }
+
+            //Start counting again
+            time.in = Date.now();
+            times[message.author.id] = time;
+        }  
+
         var currentTime = db.get("users").find({
             id: message.author.id
         }).value();
@@ -57,18 +89,14 @@ client.on('message', async message => {
             var currDiff = currentTime.time;
         }
 
-        var msec = currDiff;
-        var hh = Math.floor(msec / 1000 / 60 / 60);
-        msec -= hh * 1000 * 60 * 60;
-        var mm = Math.floor(msec / 1000 / 60);
-        msec -= mm * 1000 * 60;
-        var ss = Math.floor(msec / 1000);
-        msec -= ss * 1000;
+        var t_s = time_convert(currDiff);
 
-        message.reply("In voice-chat for: " + hh + "h " + mm + "m " + ss + "s.");
+        message.reply("In voice-chat for: " + t_s.h + "h " + t_s.m + "m " + t_s.s + "s.");
     }
 
     if (command === "stats") {
+
+        //FIX: update db before print
 
         var elementNum = 1;
 
@@ -90,20 +118,12 @@ client.on('message', async message => {
 
         arr.forEach(element => {
 
-            const username = client.users.cache.get(element.id).username;
-
-            var msec = element.time;
-            var hh = Math.floor(msec / 1000 / 60 / 60);
-            msec -= hh * 1000 * 60 * 60;
-            var mm = Math.floor(msec / 1000 / 60);
-            msec -= mm * 1000 * 60;
-            var ss = Math.floor(msec / 1000);
-            msec -= ss * 1000;
+            var t_s = time_convert(element.time);
 
             if (elementNum < 4) {
                 embed.fields.push({
                     "name": "#" + elementNum,
-                    "value": username + ", **" + hh + "h " + mm + "m " + ss + "s**"
+                    "value": element.name + ", **" + t_s.h + "h " + t_s.m + "m " + t_s.s + "s**"
                 });
             }
 
@@ -208,7 +228,7 @@ client.on('voiceStateUpdate', async function (data, newdata) {
 
         const username = client.users.cache.get(data.id).username;
 
-        //Switched voice hannel
+        //Switched voice channel
         if (newdata.channelID != null && data.channelID != null) {
             console.log(username + ": Switched Channel");
         }
@@ -225,6 +245,10 @@ client.on('voiceStateUpdate', async function (data, newdata) {
         if (newdata.channelID == null) {
             console.log(username + ": Left");
 
+            if (times[data.id] == null) {
+                return;
+            }
+
             times[data.id].out = Date.now();
 
             var diff = times[data.id].out - times[data.id].in;
@@ -237,6 +261,7 @@ client.on('voiceStateUpdate', async function (data, newdata) {
                 currDiff = diff;
                 db.get("users").push({
                     id: data.id,
+                    name: username,
                     time: diff
                 }).write();
             } else {
@@ -248,25 +273,13 @@ client.on('voiceStateUpdate', async function (data, newdata) {
                 }).write();
             }
 
-            var msec = diff;
-            var hh = Math.floor(msec / 1000 / 60 / 60);
-            msec -= hh * 1000 * 60 * 60;
-            var mm = Math.floor(msec / 1000 / 60);
-            msec -= mm * 1000 * 60;
-            var ss = Math.floor(msec / 1000);
-            msec -= ss * 1000;
+            var t_s = time_convert(diff);
 
-            console.log(username + ": In voice for: " + hh + "h " + mm + "m " + ss + "s.");
+            console.log(username + ": In voice for: " + t_s.h + "h " + t_s.m + "m " + t_s.s + "s.");
 
-            var msec = currDiff;
-            var hh = Math.floor(msec / 1000 / 60 / 60);
-            msec -= hh * 1000 * 60 * 60;
-            var mm = Math.floor(msec / 1000 / 60);
-            msec -= mm * 1000 * 60;
-            var ss = Math.floor(msec / 1000);
-            msec -= ss * 1000;
+            var t_s = time_convert(currDiff);
 
-            console.log(username + ": Total: " + hh + "h " + mm + "m " + ss + "s.");
+            console.log(username + ": Total: " + t_s.h + "h " + t_s.m + "m " + t_s.s + "s.");
         }
 
     }
@@ -293,5 +306,23 @@ client.on('voiceStateUpdate', async function (data, newdata) {
         // }
     }
 });
+
+function time_convert(time_msec) {
+    var t_s = {
+        h: 0,
+        m: 0,
+        s: 0
+    };
+
+    var msec = time_msec;
+    t_s.h = Math.floor(msec / 1000 / 60 / 60);
+    msec -= t_s.h * 1000 * 60 * 60;
+    t_s.m = Math.floor(msec / 1000 / 60);
+    msec -= t_s.m * 1000 * 60;
+    t_s.s = Math.floor(msec / 1000);
+    msec -= t_s.s * 1000; 
+
+    return t_s;
+}
 
 client.login(token);
