@@ -1,0 +1,20 @@
+{
+  "name": "discord-bot",
+  "version": "1.0.0",
+  "description": "Best discord-bot on the internet",
+  "main": "app.js",
+  "dependencies": {
+    "@discordjs/opus": "^0.3.3",
+    "discord.js": "^12.5.1",
+    "ffmpeg-static": "^4.2.7",
+    "lowdb": "^1.0.0",
+    "say": "^0.16.0",
+    "ytdl-core": "^4.4.3"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Br3Gott",
+  "license": "ISC"
+}
