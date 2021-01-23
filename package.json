@@ -10,6 +10,7 @@
     "lowdb": "^1.0.0",
     "say": "^0.16.0",
     "ytdl-core": "^4.4.4",
+    "ytpl": "^2.0.4",
     "ytsr": "^3.2.2"
   },
   "devDependencies": {},
