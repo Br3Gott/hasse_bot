@@ -3,6 +3,9 @@ TO DO:
 *Last seen in top list
 *Better randomness for audio clips
 *Add check if song is playable(ex. not avalible in country or private)
+*Add short command to play "Klassiker" pre shuffled
+*Repeat function
+*Make function for time tracking
 ---------------------------------------------------------*/
 //Discord init
 const Discord = require('discord.js');
@@ -89,8 +92,30 @@ client.on('message', async message => {
         message.channel.send('🎲 säger ' + getRandomInt(6));
     }
 
-    if (command === "mystats") {
+    if (command === "clearchat") {
+        //This can probably be optimized for faster removal.
+        
+        if (!args.length) {
+            return message.channel.send("How many?");
+        }
 
+        var channel = message.channel;
+        var amount = parseInt(args[0]) + 1;
+        var count = 1;
+
+        channel.messages.fetch({ limit: amount }).then(async messages => {
+            messages.forEach(message => {
+                console.log("Deleting: "+message.id + " " + count + " of "+ amount);
+                message.delete();
+                count++;
+            });
+          })
+          .catch(console.error);
+
+    }
+
+    if (command === "mystats") {
+        //If you are in a voice channel, update your online time.
         if (times[message.author.id] != null) {
 
             //Store time untill now
