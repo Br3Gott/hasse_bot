@@ -5,13 +5,20 @@
   "main": "app.js",
   "dependencies": {
     "@discordjs/opus": "^0.3.3",
+    "cheerio": "^1.0.0-rc.5",
     "discord.js": "^12.5.1",
+    "express": "^4.17.1",
     "ffmpeg-static": "^4.2.7",
     "lowdb": "^1.0.0",
+    "node-fetch": "^2.6.1",
+    "puppeteer": "^8.0.0",
+    "request": "^2.88.2",
+    "request-promise": "^4.2.6",
     "say": "^0.16.0",
-    "ytdl-core": "^4.4.5",
-    "ytpl": "^2.0.4",
-    "ytsr": "^3.2.2"
+    "ytdl": "^1.4.1",
+    "ytdl-core": "^4.5.0",
+    "ytpl": "^2.0.5",
+    "ytsr": "^3.2.4"
   },
   "devDependencies": {},
   "scripts": {

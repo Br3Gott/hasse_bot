@@ -4,6 +4,7 @@ TO DO:
 *Better randomness for audio clips
 *Add check if song is playable(ex. not avalible in country or private)
     *Half done, error msg added
+*Resume after ee on the right time(if yt);
 *Make function for time tracking
 ---------------------------------------------------------*/
 //Discord init
@@ -32,7 +33,23 @@ const ytsr = require('ytsr');
 //Youtube playlist resolver init
 const ytpl = require('ytpl');
 
+//Fetch for quotes
+const fetch = require('node-fetch');
+
+//Radio scraper
+const puppeteer = require('puppeteer');
+const $ = require('cheerio');
+const url = 'https://radioplay.se/rockklassiker/latlista/';
+
+let radiodata = [];
+
+//Express webapp
+const express = require('express')
+const app = express()
+const port = 2345
+
 //App Variables
+var connection;
 var dispatcher;
 var next;
 var playing = false;
@@ -44,11 +61,17 @@ var queueItem = {
     type: null,
     value: null
 };
+var apiQueueItem = {
+    song: null,
+    artist: null
+};
 var times = [];
 var time = {
     in: 0,
     out: 0
 };
+
+var lastMessage = 0;
 
 //App is ready
 client.on('ready', () => {
@@ -65,12 +88,15 @@ client.on('message', async message => {
         if (message.member.voice.channel) {
 
             //For random sound clip
-            kilo = Math.floor(Math.random()*3)+5;
+            kilo = Math.floor(Math.random() * 3) + 5;
 
-            queueItem.type =  "ee";
+            queueItem.type = "ee";
             queueItem.value = './src/kilo/' + kilo + '.mp3';
             queue.unshift(queueItem);
-            queueItem = {type: null, value: null};
+            queueItem = {
+                type: null,
+                value: null
+            };
 
             playFromQueue(message, true);
 
@@ -90,13 +116,110 @@ client.on('message', async message => {
         message.channel.send('Boop.🤖');
     }
 
+    if (command === "quote") {
+
+        const response = await fetch("https://api.quotable.io/random");
+        const data = await response.json();
+
+        message.channel.send(`"${data.content}" - ${data.author}`);
+
+        // Only try to join the sender's voice channel if they are in one themselves
+        if (message.member.voice.channel) {
+
+            say.export(data.content, null, 1, './src/' + queue.length + 'temp.wav', async (err) => {
+                if (err) {
+                    return console.error(err);
+                }
+                logPrint('Text to speach processing done!');
+                queueItem.type = "say";
+                queueItem.value = './src/' + queue.length + 'temp.wav';
+                queue.unshift(queueItem);
+                queueItem = {
+                    type: null,
+                    value: null
+                };
+
+                playFromQueue(message, true);
+            });
+
+        }
+    }
+
+    if (command === "radio") {
+        await puppeteer
+            .launch()
+            .then(function (browser) {
+                logPrint("Starting Browser!");
+                return browser.newPage();
+            })
+            .then(function (page) {
+                logPrint("Loading Page!");
+                return page.goto(url, {
+                    waitUntil: 'networkidle2',
+                }).then(function () {
+                    logPrint("Page Loaded!");
+                    return page.content();
+                });
+            })
+            .then(function (html) {
+                logPrint("Parsing Data!");
+                $('.sc-1vr93bj-10', html).each(function () {
+                    radiodata.push($(this).text());
+                });
+            }).then(async function () {
+                let c = 1;
+                for (let i = 0; i <= radiodata.length; i += 2) {
+
+                    let text = radiodata[i] + " - " + radiodata[i + 1];
+
+                    //Do not search for undefined
+                    if (!(typeof radiodata[i] == 'undefined' || typeof radiodata[i + 1] == 'undefined')) {
+                        if (message.member.voice.channel) {
+                            logPrint("Found: " + c++ + ": " + radiodata[i] + " - " + radiodata[i + 1]);
+                            //resolve and add to queue
+                            const res = await ytsr(text, {
+                                limit: 1
+                            });
+                            if (res.items.length == 0) {
+                                console.log(`Kass jävla sökning, jag hittade inte ett skit. ${message.author}!`);
+                            } else {
+                                queueItem.type = "ytdl";
+                                queueItem.value = res.items[0].url;
+                                queue.push(queueItem);
+                                resolveQueue();
+                                queueItem = {
+                                    type: null,
+                                    value: null
+                                };
+
+                                if (!playing) {
+                                    playFromQueue(message);
+                                } else {
+                                    // console.log("Tillagd i kön.");
+                                }
+                            }
+
+                        } else {
+                            // console.log('Vart fan vill du att jag ska då?');
+                        }
+                    }
+
+                }
+                logPrint("Hämtade " + --c + " låtar!");
+            })
+            .catch(function (err) {
+                //handle error
+                console.log(err);
+            });
+    }
+
     if (command === "roll") {
         message.channel.send('🎲 säger ' + getRandomInt(6));
     }
 
     if (command === "clearchat") {
         //This can probably be optimized for faster removal.
-        
+
         if (!args.length) {
             return message.channel.send("How many?");
         }
@@ -105,14 +228,16 @@ client.on('message', async message => {
         var amount = parseInt(args[0]) + 1;
         var count = 1;
 
-        channel.messages.fetch({ limit: amount }).then(async messages => {
-            messages.forEach(message => {
-                logPrint("Deleting: "+message.id + " " + count + " of "+ amount);
-                message.delete();
-                count++;
-            });
-          })
-          .catch(console.error);
+        channel.messages.fetch({
+                limit: amount
+            }).then(async messages => {
+                messages.forEach(message => {
+                    logPrint("Deleting: " + message.id + " " + count + " of " + amount);
+                    message.delete();
+                    count++;
+                });
+            })
+            .catch(console.error);
 
     }
 
@@ -153,7 +278,7 @@ client.on('message', async message => {
             time.in = Date.now();
             times[message.author.id] = time;
 
-        }  
+        }
 
         var currentTime = db.get("users").find({
             id: message.author.id
@@ -255,19 +380,23 @@ client.on('message', async message => {
         // Only try to join the sender's voice channel if they are in one themselves
         if (message.member.voice.channel) {
 
-            say.export(text, null, 1, './src/'+ queue.length +'temp.wav', async (err) => {
+            say.export(text, null, 1, './src/' + queue.length + 'temp.wav', async (err) => {
                 if (err) {
                     return console.error(err);
                 }
                 logPrint('Text to speach processing done!');
                 queueItem.type = "say";
-                queueItem.value = './src/'+ queue.length +'temp.wav';
+                queueItem.value = './src/' + queue.length + 'temp.wav';
                 queue.push(queueItem);
-                queueItem = {type: null, value: null};
+                resolveQueue();
+                queueItem = {
+                    type: null,
+                    value: null
+                };
 
                 if (!playing) {
                     playFromQueue(message);
-                }else{
+                } else {
                     message.channel.send("Tillagd i kön.");
                 }
             });
@@ -292,16 +421,20 @@ client.on('message', async message => {
 
         // Only try to join the sender's voice channel if they are in one themselves
         if (message.member.voice.channel) {
-                queueItem.type = "ytdl";
-                queueItem.value = text;
-                queue.push(queueItem);
-                queueItem = {type: null, value: null};
+            queueItem.type = "ytdl";
+            queueItem.value = text;
+            queue.push(queueItem);
+            resolveQueue();
+            queueItem = {
+                type: null,
+                value: null
+            };
 
-                if (!playing) {
-                    playFromQueue(message);
-                }else{
-                    message.channel.send("Tillagd i kön.");
-                }
+            if (!playing) {
+                playFromQueue(message);
+            } else {
+                message.channel.send("Tillagd i kön.");
+            }
         } else {
             message.reply('Vart fan vill du att jag ska då?');
         }
@@ -318,18 +451,24 @@ client.on('message', async message => {
         // Only try to join the sender's voice channel if they are in one themselves
         if (message.member.voice.channel) {
             //resolve and add to queue
-            const res = await ytsr(text, {limit: 1});
+            const res = await ytsr(text, {
+                limit: 1
+            });
             if (res.items.length == 0) {
                 message.channel.send(`Kass jävla sökning, jag hittade inte ett skit. ${message.author}!`);
-            }else {
+            } else {
                 queueItem.type = "ytdl";
                 queueItem.value = res.items[0].url;
                 queue.push(queueItem);
-                queueItem = {type: null, value: null};
+                resolveQueue();
+                queueItem = {
+                    type: null,
+                    value: null
+                };
 
                 if (!playing) {
                     playFromQueue(message);
-                }else{
+                } else {
                     message.channel.send("Tillagd i kön.");
                 }
             }
@@ -343,7 +482,16 @@ client.on('message', async message => {
 
         if (!args.length) {
             //show what is in queue
-            return message.channel.send(`No arguments, ${message.author}!`);
+            // return message.channel.send(`No arguments, ${message.author}!`);
+            message.channel.send(`Nu spelas: `);
+            if (queue.length > 0) {
+                message.channel.send(queue[0].value);
+            }
+            message.channel.send(`Nästa i kön är: `);
+            if (queue.length > 1) {
+                message.channel.send(queue[1].value);
+            }
+            return
         }
 
         var statusUrl = true;
@@ -353,55 +501,94 @@ client.on('message', async message => {
             }
         });
 
-        if(statusUrl){
+        if (statusUrl) {
             return message.channel.send(`Unknown URL, ${message.author}!`);
         }
 
-        args.forEach( async function(arg) {
+        args.forEach(async function (arg) {
             if (arg.includes("list=")) {
                 const playlist = await ytpl(arg);
                 playlist.items.forEach(item => {
                     queueItem.type = "ytdl";
                     queueItem.value = item.shortUrl;
                     queue.push(queueItem);
-                    queueItem = {type: null, value: null};
+                    resolveQueue();
+                    queueItem = {
+                        type: null,
+                        value: null
+                    };
                 });
-            }else {
+            } else {
                 queueItem.type = "ytdl";
                 queueItem.value = arg;
                 queue.push(queueItem);
-                queueItem = {type: null, value: null};
+                resolveQueue();
+                queueItem = {
+                    type: null,
+                    value: null
+                };
             }
         });
 
         //delay issue due to await -- for now bad temp fix
         if (!playing) {
-            setTimeout(function() {
+            setTimeout(function () {
                 playFromQueue(message);
-            }, 1000);  
+            }, 1000);
         }
-        
+
     }
 
-    if (command === "classic") {
+    if (command === "classic" || command === "klassiker") {
         //Refactor with functions instead of reusing code
         const playlist = await ytpl("https://www.youtube.com/playlist?list=PL3NF4GNWwH4gCsNfFWj-Kco40PfvSRTyq");
-                playlist.items.forEach(item => {
-                    queueItem.type = "ytdl";
-                    queueItem.value = item.shortUrl;
-                    queue.push(queueItem);
-                    queueItem = {type: null, value: null};
-                });
-                message.channel.send("Added music to queue!");
+        playlist.items.forEach(item => {
+            queueItem.type = "ytdl";
+            queueItem.value = item.shortUrl;
+            queue.push(queueItem);
+            resolveQueue();
+            queueItem = {
+                type: null,
+                value: null
+            };
+        });
+        message.channel.send("Added music to queue!");
         //delay issue due to await -- for now bad temp fix
         if (!playing) {
             shuffleArray(queue);
             message.channel.send("Shuffled the queue!");
 
-            setTimeout(function() {
-                message.channel.send("Playing!");
+            setTimeout(function () {
+                message.channel.send("Started playing!");
                 playFromQueue(message);
-            }, 1000);  
+            }, 1000);
+        }
+
+    }
+
+    if (command === "zombies") {
+        //Refactor with functions instead of reusing code
+        const playlist = await ytpl("https://www.youtube.com/playlist?list=PLphIVgFFFw7WnQ9A0tLRbcMEeufwnXqfK");
+        playlist.items.forEach(item => {
+            queueItem.type = "ytdl";
+            queueItem.value = item.shortUrl;
+            queue.push(queueItem);
+            resolveQueue();
+            queueItem = {
+                type: null,
+                value: null
+            };
+        });
+        message.channel.send("Added music to queue!");
+        //delay issue due to await -- for now bad temp fix
+        if (!playing) {
+            shuffleArray(queue);
+            message.channel.send("Shuffled the queue!");
+
+            setTimeout(function () {
+                message.channel.send("Started playing!");
+                playFromQueue(message);
+            }, 1000);
         }
 
     }
@@ -412,25 +599,33 @@ client.on('message', async message => {
 
     }
 
+    if (command === "join") {
+        lastMessage = message;
+        connection = await message.member.voice.channel.join();
+    }
+
     if (command === "stop") {
-        message.member.voice.channel.leave();
-        if(loop) {
+        connection.disconnect();
+        if (loop) {
             next = queue.shift();
             queue.push(next);
-            next = {type: null, value: null};
-        }else {
+            next = {
+                type: null,
+                value: null
+            };
+        } else {
             queue.shift();
         }
         playing = false;
     }
 
     if (command === "pause") {
-        if(playing){
+        if (playing) {
             dispatcher.pause();
             paused = true;
             message.channel.send("Paused music!");
         }
-        
+
     }
 
     if (command === "resume") {
@@ -439,27 +634,30 @@ client.on('message', async message => {
             paused = false;
             message.channel.send("Resumed music!");
         }
-        
+
     }
 
     if (command === "skip") {
         message.channel.send("Yeeting this song!");
-        if(loop) {
+        if (loop) {
             next = queue.shift();
             queue.push(next);
-            next = {type: null, value: null};
-        }else {
+            next = {
+                type: null,
+                value: null
+            };
+        } else {
             queue.shift();
         }
         playFromQueue(message, true);
     }
 
     if (command === "loop") {
-        
+
         if (loop) {
             message.channel.send("Loop: off");
             loop = false;
-        }else {
+        } else {
             message.channel.send("Loop: on");
             loop = true;
         }
@@ -471,7 +669,7 @@ client.on('message', async message => {
             var temp = queue.shift();
             shuffleArray(queue);
             queue.unshift(temp);
-        }else {
+        } else {
             shuffleArray(queue);
         }
 
@@ -567,7 +765,7 @@ client.on('voiceStateUpdate', async function (data, newdata) {
                         playing = false;
                     });
                 }
-            } 
+            }
         }
 
         // if (newdata.selfMute == false) {
@@ -597,7 +795,7 @@ function convertTime(time_msec) {
     t_s.m = Math.floor(msec / 1000 / 60);
     msec -= t_s.m * 1000 * 60;
     t_s.s = Math.floor(msec / 1000);
-    msec -= t_s.s * 1000; 
+    msec -= t_s.s * 1000;
 
     return t_s;
 }
@@ -616,6 +814,17 @@ function shuffleArray(arr) {
 
 //App specific functions
 async function playFromQueue(message, skip) {
+    // if (message == 0) {
+    //     message = lastMessage;
+    // }else {
+    //     if (lastmessage == 0) {
+    //         return;
+    //     }
+    //     lastMessage = message;
+    // }
+
+    lastMessage = message;
+
     if (!playing || skip) {
 
         if (queue[0] == null) {
@@ -623,23 +832,29 @@ async function playFromQueue(message, skip) {
             queueItem.type = "ee";
             queueItem.value = "./src/empty.mp3";
             next = queueItem;
-            queueItem = {type: null, value: null};
+            queueItem = {
+                type: null,
+                value: null
+            };
 
             // return message.channel.send("Kö tom");
-        }else {
+        } else {
             next = queue[0];
         }
 
         // message.channel.send("Playing from queue: "+next.value);
 
         playing = true;
-        const connection = await message.member.voice.channel.join();
+        //check if already connected then dont try to reconnect.
+        // if (!connection) {
+        connection = await message.member.voice.channel.join();
+        // }
 
         if (next.type == "ytdl") {
             dispatcher = connection.play(ytdl(next.value, {
-                filter: 'audioonly'
+                filter: 'audio'
             }));
-        }else if (next.type == "say" || next.type == "ee") {
+        } else if (next.type == "say" || next.type == "ee") {
             dispatcher = connection.play(next.value);
         }
 
@@ -651,9 +866,9 @@ async function playFromQueue(message, skip) {
             return message.channel.send("Åh fy fan, jag satt i halsen!");
         });
         dispatcher.on('finish', () => {
-            if(loop) {
+            if (loop) {
                 queue.push(next);
-            }else {
+            } else {
                 queue.shift();
             }
 
@@ -661,7 +876,7 @@ async function playFromQueue(message, skip) {
                 logPrint('Finished playing and leaving voice');
                 message.member.voice.channel.leave();
                 playing = false;
-            }else {
+            } else {
                 logPrint('Songs still in queue playing next');
                 playing = false;
                 playFromQueue(message);
@@ -669,3 +884,293 @@ async function playFromQueue(message, skip) {
         });
     }
 }
+
+async function resolveQueue() {
+
+    for (let i = 0; i < queue.length; i++) {
+        if (typeof queue[i].info === 'undefined') {
+            if (queue[i].type == "ytdl") {
+                let info = await ytdl.getInfo(queue[i].value);
+                apiQueueItem.song = info.videoDetails.title;
+                apiQueueItem.artist = queue[i].value;
+                //Stop resolving if queue is cleared
+                if (queue.length > 0) {
+                    //Prevent missmatch when shuffle and resolving
+                    if (queue[i].value == apiQueueItem.artist) {
+                        queue[i].info = apiQueueItem;
+                    }
+                }
+                apiQueueItem = {
+                    song: null,
+                    artist: null
+                };
+            } else {
+                apiQueueItem.song = queue[i].value;
+                apiQueueItem.artist = queue[i].type;
+                queue[i].info = apiQueueItem;
+                apiQueueItem = {
+                    song: null,
+                    artist: null
+                };
+            }
+        }
+    };
+}
+
+//Express webapp
+//serve site
+app.use("/", express.static('public'));
+
+//api endpoints
+app.get('/api', (req, res) => {
+    resolveQueue();
+    res.send({
+        queue
+    });
+});
+
+app.get('/status', (req, res) => {
+    res.send({
+        playing,
+        paused,
+        loop
+    });
+});
+
+app.get('/shuffle', (req, res) => {
+    if (playing || paused) {
+        var temp = queue.shift();
+        shuffleArray(queue);
+        queue.unshift(temp);
+    } else {
+        shuffleArray(queue);
+    }
+    // channel = client.channels.cache.get('800706486896558110');
+    // channel.send("WEBUSER: Shuffled the queue!");
+    res.send("shuffled");
+});
+
+app.get('/playtoggle', (req, res) => {
+    console.log("playtoggle");
+    res.send("playtoggle");
+    // channel = client.channels.cache.get('800706486896558110');
+    if (playing && !paused) {
+        dispatcher.pause();
+        paused = true;
+        // channel.send("WEBUSER: Paused music!");
+    } else {
+        dispatcher.resume();
+        paused = false;
+        // channel.send("WEBUSER: Resumed music!");
+    }
+});
+
+app.get('/skip', (req, res) => {
+    res.send("skipping");
+    // channel = client.channels.cache.get('800706486896558110');
+    if (lastMessage == 0) {
+        // channel.send("WEBUSER: Play something first!");
+        return;
+    }
+    // channel.send("WEBUSER: Yeeting this song!");
+    if (loop) {
+        next = queue.shift();
+        queue.push(next);
+        next = {
+            type: null,
+            value: null
+        };
+    } else {
+        queue.shift();
+    }
+    playFromQueue(lastMessage, true);
+});
+
+app.get('/clear', (req, res) => {
+    console.log("clear");
+    res.send("clear");
+    queue = [];
+    // channel = client.channels.cache.get('800706486896558110');
+    // channel.send("WEBUSER: Cleared the queue!");
+});
+
+app.get('/loop', (req, res) => {
+    console.log("loop");
+    res.send("loop");
+    // channel = client.channels.cache.get('800706486896558110');
+    if (loop) {
+        // channel.send("WEBUSER: Loop: off");
+        loop = false;
+    } else {
+        // channel.send("WEBUSER: Loop: on");
+        loop = true;
+    }
+    playFromQueue(lastMessage);
+});
+
+app.get('/remove', (req, res) => {
+    res.send("removing");
+    queue.splice(req.query.id, 1);
+});
+
+app.get('/playnow', (req, res) => {
+    res.send("playing");
+    let temp = queue.splice(req.query.id, 1);
+    queue.unshift(temp[0]);
+    playFromQueue(lastMessage, true);
+});
+
+app.get('/search', async (req, res) => {
+    res.send("searching");
+    let text = req.query.q;
+    const result = await ytsr(text, {
+        limit: 1
+    });
+
+    queueItem.type = "ytdl";
+    queueItem.value = result.items[0].url;
+    queue.push(queueItem);
+    resolveQueue();
+    queueItem = {
+        type: null,
+        value: null
+    };
+
+    if (!playing) {
+        playFromQueue(lastMessage);
+    } else {
+        // channel = client.channels.cache.get('800706486896558110');
+        // channel.send("WEBUSER: Tillagd i kön.");
+    }
+});
+
+app.get('/move', (req, res) => {
+    res.send("moving");
+    let from = req.query.from;
+    let to = req.query.to;
+    if (to >= 1 && to <= queue.length) {
+        let element = queue[from];
+        queue.splice(from, 1);
+        queue.splice(to, 0, element);
+    }
+});
+
+app.get('/preset', async (req, res) => {
+    res.send("starting from preset");
+    if (req.query.id == 1) {
+        console.log("klassiker");
+        //Refactor with functions instead of reusing code
+        const playlist = await ytpl("https://www.youtube.com/playlist?list=PL3NF4GNWwH4gCsNfFWj-Kco40PfvSRTyq");
+        playlist.items.forEach(item => {
+            queueItem.type = "ytdl";
+            queueItem.value = item.shortUrl;
+            queue.push(queueItem);
+            resolveQueue();
+            queueItem = {
+                type: null,
+                value: null
+            };
+        });
+        // message.channel.send("Added music to queue!");
+        //delay issue due to await -- for now bad temp fix
+        if (!playing) {
+            shuffleArray(queue);
+            // message.channel.send("Shuffled the queue!");
+
+            setTimeout(function () {
+                // message.channel.send("Started playing!");
+                playFromQueue(lastMessage);
+            }, 1000);
+        }
+    } else if (req.query.id == 2) {
+        //Refactor with functions instead of reusing code
+        const playlist = await ytpl("https://www.youtube.com/playlist?list=PLphIVgFFFw7WnQ9A0tLRbcMEeufwnXqfK");
+        playlist.items.forEach(item => {
+            queueItem.type = "ytdl";
+            queueItem.value = item.shortUrl;
+            queue.push(queueItem);
+            resolveQueue();
+            queueItem = {
+                type: null,
+                value: null
+            };
+        });
+        message.channel.send("Added music to queue!");
+        //delay issue due to await -- for now bad temp fix
+        if (!playing) {
+            shuffleArray(queue);
+            message.channel.send("Shuffled the queue!");
+
+            setTimeout(function () {
+                message.channel.send("Started playing!");
+                playFromQueue(message);
+            }, 1000);
+        }
+    } else if (req.query.id == 3) {
+        console.log("radio");
+        await puppeteer
+            .launch()
+            .then(function (browser) {
+                logPrint("Starting Browser!");
+                return browser.newPage();
+            })
+            .then(function (page) {
+                logPrint("Loading Page!");
+                return page.goto(url, {
+                    waitUntil: 'networkidle2',
+                }).then(function () {
+                    logPrint("Page Loaded!");
+                    return page.content();
+                });
+            })
+            .then(function (html) {
+                logPrint("Parsing Data!");
+                $('.sc-1vr93bj-10', html).each(function () {
+                    radiodata.push($(this).text());
+                });
+            }).then(async function () {
+                let c = 1;
+                for (let i = 0; i <= radiodata.length; i += 2) {
+
+                    let text = radiodata[i] + " - " + radiodata[i + 1];
+
+                    //Do not search for undefined
+                    if (!(typeof radiodata[i] == 'undefined' || typeof radiodata[i + 1] == 'undefined')) {
+                        logPrint("Found: " + c++ + ": " + radiodata[i] + " - " + radiodata[i + 1]);
+                        //resolve and add to queue
+                        const res = await ytsr(text, {
+                            limit: 1
+                        });
+                        if (res.items.length == 0) {
+                            console.log(`Kass jävla sökning, jag hittade inte ett skit. ${message.author}!`);
+                        } else {
+                            queueItem.type = "ytdl";
+                            queueItem.value = res.items[0].url;
+                            queue.push(queueItem);
+                            resolveQueue();
+                            queueItem = {
+                                type: null,
+                                value: null
+                            };
+
+                            if (!playing) {
+                                playFromQueue(lastMessage);
+                            } else {
+                                // console.log("Tillagd i kön.");
+                            }
+                        }
+
+                    }
+
+                }
+                logPrint("Hämtade " + --c + " låtar!");
+            })
+            .catch(function (err) {
+                //handle error
+                console.log(err);
+            });
+    }
+});
+
+//start app
+app.listen(port, () => logPrint(`Website running on port:[${port}]`));
