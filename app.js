@@ -605,6 +605,7 @@ client.on('message', async message => {
     }
 
     if (command === "stop") {
+        lastMessage = 0;
         connection.disconnect();
         if (loop) {
             next = queue.shift();
@@ -930,10 +931,16 @@ app.get('/api', (req, res) => {
 });
 
 app.get('/status', (req, res) => {
+    let lastMessageRecived = false;
+    if (lastMessage != 0) {
+        lastMessageRecived = true;
+    }
+
     res.send({
         playing,
         paused,
-        loop
+        loop,
+        lastMessageRecived
     });
 });
 

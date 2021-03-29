@@ -82,6 +82,13 @@ async function statusUpdate() {
         .then((data) => {
             return data;
         });
+        let connectionAlert = document.querySelector(".connection-alert");
+        if(dataReturn.lastMessageRecived == true){
+            connectionAlert.style = "display: none";
+        }else {
+            connectionAlert.style = "display: flex";
+        }
+
         let playingDot = document.querySelector(".playing-dot");
         if(dataReturn.playing == true){
             playingDot.style = "background-color: seagreen";
