@@ -869,9 +869,9 @@ async function playFromQueue(message, skip) {
         dispatcher.on('finish', () => {
             if (loop) {
                 queue.push(next);
-            } else {
-                queue.shift();
             }
+            queue.shift();
+            
 
             if (queue[0] == null) {
                 logPrint('Finished playing and leaving voice');
@@ -1102,15 +1102,15 @@ app.get('/preset', async (req, res) => {
                 value: null
             };
         });
-        message.channel.send("Added music to queue!");
+        // message.channel.send("Added music to queue!");
         //delay issue due to await -- for now bad temp fix
         if (!playing) {
             shuffleArray(queue);
-            message.channel.send("Shuffled the queue!");
+            // message.channel.send("Shuffled the queue!");
 
             setTimeout(function () {
-                message.channel.send("Started playing!");
-                playFromQueue(message);
+                // message.channel.send("Started playing!");
+                playFromQueue(lastMessage);
             }, 1000);
         }
     } else if (req.query.id == 3) {
