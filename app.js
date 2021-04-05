@@ -6,6 +6,7 @@ TO DO:
     *Half done, error msg added
 *Resume after ee on the right time(if yt);
 *Make function for time tracking
+*ge mig <search_term> -> sök bild
 ---------------------------------------------------------*/
 //Discord init
 const Discord = require('discord.js');
@@ -63,6 +64,7 @@ var queueItem = {
 };
 var apiQueueItem = {
     song: null,
+    thumbnail_url: null,
     artist: null
 };
 var times = [];
@@ -893,6 +895,7 @@ async function resolveQueue() {
             if (queue[i].type == "ytdl") {
                 let info = await ytdl.getInfo(queue[i].value);
                 apiQueueItem.song = info.videoDetails.title;
+                apiQueueItem.thumbnail_url = info.videoDetails.thumbnails[(info.videoDetails.thumbnails.length-1)].url;
                 apiQueueItem.artist = queue[i].value;
                 //Stop resolving if queue is cleared
                 if (queue.length > 0) {
@@ -903,6 +906,7 @@ async function resolveQueue() {
                 }
                 apiQueueItem = {
                     song: null,
+                    thumbnail_url: null,
                     artist: null
                 };
             } else {
