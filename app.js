@@ -596,7 +596,9 @@ client.on('message', async message => {
     }
 
     if (command === "clear") {
-        queue = [];
+
+        clear_queue();
+
         message.channel.send("Cleared the queue!");
 
     }
@@ -893,14 +895,14 @@ async function resolveQueue() {
     for (let i = 0; i < queue.length; i++) {
         if (typeof queue[i].info === 'undefined') {
             if (queue[i].type == "ytdl") {
-                let info = await ytdl.getInfo(queue[i].value);
-                apiQueueItem.song = info.videoDetails.title;
-                apiQueueItem.thumbnail_url = info.videoDetails.thumbnails[(info.videoDetails.thumbnails.length-1)].url;
-                apiQueueItem.artist = queue[i].value;
                 //Stop resolving if queue is cleared
                 if (queue.length > 0) {
+                    apiQueueItem.artist = queue[i].value;
+                    let info = await ytdl.getInfo(queue[i].value);
+                    apiQueueItem.song = info.videoDetails.title;
+                    apiQueueItem.thumbnail_url = info.videoDetails.thumbnails[(info.videoDetails.thumbnails.length-1)].url;
                     //Prevent missmatch when shuffle and resolving
-                    if (queue[i].value == apiQueueItem.artist) {
+                    if (typeof queue[i] != 'undefined' && queue[i].value == apiQueueItem.artist) {
                         queue[i].info = apiQueueItem;
                     }
                 }
@@ -920,6 +922,16 @@ async function resolveQueue() {
             }
         }
     };
+}
+
+function clear_queue() {
+
+    if(queue.length > 0 ){
+        let temp_song = queue.shift();
+        queue = [];
+        queue.push(temp_song);
+    }
+
 }
 
 //Express webapp
@@ -1000,7 +1012,7 @@ app.get('/skip', (req, res) => {
 app.get('/clear', (req, res) => {
     console.log("clear");
     res.send("clear");
-    queue = [];
+    clear_queue();
     // channel = client.channels.cache.get('800706486896558110');
     // channel.send("WEBUSER: Cleared the queue!");
 });
