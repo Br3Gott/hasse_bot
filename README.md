@@ -11,3 +11,9 @@ App requires node and npm.
 Install dependencies with "npm install"
 
 Run app with "node ."
+
+Using Docker:
+
+    build with - docker build -t <reponame>
+
+    run with - docker run -i --init --rm -p 2345:2345 --cap-add=SYS_ADMIN --name <name> <reponame> node "."
