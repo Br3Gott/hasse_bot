@@ -48,6 +48,7 @@ let radiodata = [];
 const express = require('express')
 const app = express()
 const port = 2345
+let busyAdd = false;
 
 //App Variables
 var connection;
@@ -1080,118 +1081,130 @@ app.get('/move', (req, res) => {
 
 app.get('/preset', async (req, res) => {
     res.send("starting from preset");
-    if (req.query.id == 1) {
-        console.log("klassiker");
-        //Refactor with functions instead of reusing code
-        const playlist = await ytpl("https://www.youtube.com/playlist?list=PL3NF4GNWwH4gCsNfFWj-Kco40PfvSRTyq");
-        playlist.items.forEach(item => {
-            queueItem.type = "ytdl";
-            queueItem.value = item.shortUrl;
-            queue.push(queueItem);
-            resolveQueue();
-            queueItem = {
-                type: null,
-                value: null
-            };
-        });
-        // message.channel.send("Added music to queue!");
-        //delay issue due to await -- for now bad temp fix
-        if (!playing) {
-            shuffleArray(queue);
-            // message.channel.send("Shuffled the queue!");
-
-            setTimeout(function () {
-                // message.channel.send("Started playing!");
-                playFromQueue(lastMessage);
-            }, 1000);
-        }
-    } else if (req.query.id == 2) {
-        //Refactor with functions instead of reusing code
-        const playlist = await ytpl("https://www.youtube.com/playlist?list=PLphIVgFFFw7WnQ9A0tLRbcMEeufwnXqfK");
-        playlist.items.forEach(item => {
-            queueItem.type = "ytdl";
-            queueItem.value = item.shortUrl;
-            queue.push(queueItem);
-            resolveQueue();
-            queueItem = {
-                type: null,
-                value: null
-            };
-        });
-        // message.channel.send("Added music to queue!");
-        //delay issue due to await -- for now bad temp fix
-        if (!playing) {
-            shuffleArray(queue);
-            // message.channel.send("Shuffled the queue!");
-
-            setTimeout(function () {
-                // message.channel.send("Started playing!");
-                playFromQueue(lastMessage);
-            }, 1000);
-        }
-    } else if (req.query.id == 3) {
-        console.log("radio");
-        await puppeteer
-            .launch()
-            .then(function (browser) {
-                logPrint("Starting Browser!");
-                return browser.newPage();
-            })
-            .then(function (page) {
-                logPrint("Loading Page!");
-                return page.goto(url, {
-                    waitUntil: 'networkidle2',
-                }).then(function () {
-                    logPrint("Page Loaded!");
-                    return page.content();
-                });
-            })
-            .then(function (html) {
-                logPrint("Parsing Data!");
-                $('.sc-1vr93bj-10', html).each(function () {
-                    radiodata.push($(this).text());
-                });
-            }).then(async function () {
-                let c = 1;
-                for (let i = 0; i <= radiodata.length; i += 2) {
-
-                    let text = radiodata[i] + " - " + radiodata[i + 1];
-
-                    //Do not search for undefined
-                    if (!(typeof radiodata[i] == 'undefined' || typeof radiodata[i + 1] == 'undefined')) {
-                        logPrint("Found: " + c++ + ": " + radiodata[i] + " - " + radiodata[i + 1]);
-                        //resolve and add to queue
-                        const res = await ytsr(text, {
-                            limit: 1
-                        });
-                        if (res.items.length == 0) {
-                            console.log(`Kass jävla sökning, jag hittade inte ett skit. ${message.author}!`);
-                        } else {
-                            queueItem.type = "ytdl";
-                            queueItem.value = res.items[0].url;
-                            queue.push(queueItem);
-                            resolveQueue();
-                            queueItem = {
-                                type: null,
-                                value: null
-                            };
-
-                            if (!playing) {
-                                playFromQueue(lastMessage);
-                            } else {
-                                // console.log("Tillagd i kön.");
-                            }
-                        }
-
-                    }
-
-                }
-                logPrint("Hämtade " + --c + " låtar!");
-            })
-            .catch(function (err) {
-                //handle error
-                console.log(err);
+    //Try to prevent adding multiples of songs.
+    if(!busyAdd){
+        busyAdd = true;
+        if (req.query.id == 1) {
+            console.log("klassiker");
+            //Refactor with functions instead of reusing code
+            const playlist = await ytpl("https://www.youtube.com/playlist?list=PL3NF4GNWwH4gCsNfFWj-Kco40PfvSRTyq");
+            playlist.items.forEach(item => {
+                queueItem.type = "ytdl";
+                queueItem.value = item.shortUrl;
+                queue.push(queueItem);
+                resolveQueue();
+                queueItem = {
+                    type: null,
+                    value: null
+                };
             });
+
+            busyAdd = false;
+
+            // message.channel.send("Added music to queue!");
+            //delay issue due to await -- for now bad temp fix
+            if (!playing) {
+                shuffleArray(queue);
+                // message.channel.send("Shuffled the queue!");
+    
+                setTimeout(function () {
+                    // message.channel.send("Started playing!");
+                    playFromQueue(lastMessage);
+                }, 1000);
+            }
+        } else if (req.query.id == 2) {
+            //Refactor with functions instead of reusing code
+            const playlist = await ytpl("https://www.youtube.com/playlist?list=PLphIVgFFFw7WnQ9A0tLRbcMEeufwnXqfK");
+            playlist.items.forEach(item => {
+                queueItem.type = "ytdl";
+                queueItem.value = item.shortUrl;
+                queue.push(queueItem);
+                resolveQueue();
+                queueItem = {
+                    type: null,
+                    value: null
+                };
+            });
+
+            busyAdd = false;
+
+            // message.channel.send("Added music to queue!");
+            //delay issue due to await -- for now bad temp fix
+            if (!playing) {
+                shuffleArray(queue);
+                // message.channel.send("Shuffled the queue!");
+    
+                setTimeout(function () {
+                    // message.channel.send("Started playing!");
+                    playFromQueue(lastMessage);
+                }, 1000);
+            }
+        } else if (req.query.id == 3) {
+            console.log("radio");
+            await puppeteer
+                .launch()
+                .then(function (browser) {
+                    logPrint("Starting Browser!");
+                    return browser.newPage();
+                })
+                .then(function (page) {
+                    logPrint("Loading Page!");
+                    return page.goto(url, {
+                        waitUntil: 'networkidle2',
+                    }).then(function () {
+                        logPrint("Page Loaded!");
+                        return page.content();
+                    });
+                })
+                .then(function (html) {
+                    logPrint("Parsing Data!");
+                    $('.sc-1vr93bj-10', html).each(function () {
+                        radiodata.push($(this).text());
+                    });
+                }).then(async function () {
+                    let c = 1;
+                    for (let i = 0; i <= radiodata.length; i += 2) {
+    
+                        let text = radiodata[i] + " - " + radiodata[i + 1];
+    
+                        //Do not search for undefined
+                        if (!(typeof radiodata[i] == 'undefined' || typeof radiodata[i + 1] == 'undefined') && radiodata[i] != 'BauerMedia') {
+                            logPrint("Found: " + c++ + ": " + radiodata[i] + " - " + radiodata[i + 1]);
+                            //resolve and add to queue
+                            const res = await ytsr(text, {
+                                limit: 1
+                            });
+                            if (res.items.length == 0) {
+                                console.log(`Kass jävla sökning, jag hittade inte ett skit. ${message.author}!`);
+                            } else {
+                                queueItem.type = "ytdl";
+                                queueItem.value = res.items[0].url;
+                                queue.push(queueItem);
+                                resolveQueue();
+                                queueItem = {
+                                    type: null,
+                                    value: null
+                                };
+
+                                busyAdd = false;
+
+                                if (!playing) {
+                                    playFromQueue(lastMessage);
+                                } else {
+                                    // console.log("Tillagd i kön.");
+                                }
+                            }
+    
+                        }
+    
+                    }
+                    logPrint("Hämtade " + --c + " låtar!");
+                })
+                .catch(function (err) {
+                    //handle error
+                    console.log(err);
+                });
+        }
     }
 });
 
