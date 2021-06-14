@@ -5,13 +5,11 @@
   "main": "app.js",
   "dependencies": {
     "@discordjs/opus": "^0.5.3",
-    "cheerio": "^1.0.0-rc.10",
     "discord.js": "^12.5.1",
     "express": "^4.17.1",
     "ffmpeg-static": "^4.2.7",
     "lowdb": "^1.0.0",
     "node-fetch": "^2.6.1",
-    "puppeteer": "^8.0.0",
     "request": "^2.88.2",
     "request-promise": "^4.2.6",
     "say": "^0.16.0",

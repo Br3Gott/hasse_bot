@@ -37,13 +37,6 @@ const ytpl = require('ytpl');
 //Fetch for quotes
 const fetch = require('node-fetch');
 
-//Radio scraper
-const puppeteer = require('puppeteer');
-const $ = require('cheerio');
-const url = 'https://radioplay.se/rockklassiker/latlista/';
-
-let radiodata = [];
-
 //Express webapp
 const express = require('express')
 const app = express()
@@ -149,71 +142,64 @@ client.on('message', async message => {
     }
 
     if (command === "radio") {
-        await puppeteer
-            .launch()
-            .then(function (browser) {
-                logPrint("Starting Browser!");
-                return browser.newPage();
+
+        let date = new Date();
+        let current = encodeURIComponent(date.toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm' }).substr(0,10) + " " + date.toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm' }).substr(11,8));
+        await fetch("https://listenapi.planetradio.co.uk/api9.2/events/rok/"+ current +"/25", {
+            "headers": {
+                "accept": "application/json, text/plain, */*",
+                "accept-language": "sv-SE,sv;q=0.9,en-US;q=0.8,en;q=0.7,de;q=0.6,ru;q=0.5",
+                "cache-control": "no-cache",
+                "pragma": "no-cache",
+                "sec-ch-ua": "\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"90\", \"Google Chrome\";v=\"90\"",
+                "sec-ch-ua-mobile": "?0",
+                "sec-fetch-dest": "empty",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-site": "cross-site",
+                "sec-gpc": "1"
+            },
+            "referrer": "https://radioplay.se/",
+            "referrerPolicy": "strict-origin-when-cross-origin",
+            "body": null,
+            "method": "GET",
+            "mode": "cors"
             })
-            .then(function (page) {
-                logPrint("Loading Page!");
-                return page.goto(url, {
-                    waitUntil: 'networkidle2',
-                }).then(function () {
-                    logPrint("Page Loaded!");
-                    return page.content();
-                });
-            })
-            .then(function (html) {
-                logPrint("Parsing Data!");
-                $('.sc-1vr93bj-10', html).each(function () {
-                    radiodata.push($(this).text());
-                });
-            }).then(async function () {
-                let c = 1;
-                for (let i = 0; i <= radiodata.length; i += 2) {
+            .then(res => res.json())
+            .then(json => {
+                json.forEach(async element => {
 
-                    let text = radiodata[i] + " - " + radiodata[i + 1];
-
-                    //Do not search for undefined
-                    if (!(typeof radiodata[i] == 'undefined' || typeof radiodata[i + 1] == 'undefined')) {
-                        if (message.member.voice.channel) {
-                            logPrint("Found: " + c++ + ": " + radiodata[i] + " - " + radiodata[i + 1]);
-                            //resolve and add to queue
-                            const res = await ytsr(text, {
-                                limit: 1
-                            });
-                            if (res.items.length == 0) {
-                                console.log(`Kass jävla sökning, jag hittade inte ett skit. ${message.author}!`);
-                            } else {
-                                queueItem.type = "ytdl";
-                                queueItem.value = res.items[0].url;
-                                queue.push(queueItem);
-                                resolveQueue();
-                                queueItem = {
-                                    type: null,
-                                    value: null
-                                };
-
-                                if (!playing) {
-                                    playFromQueue(message);
-                                } else {
-                                    // console.log("Tillagd i kön.");
-                                }
-                            }
-
+                    if (message.member.voice.channel) {
+                        let text = element.nowPlayingTrack + " - " +element.nowPlayingArtist;
+                        logPrint("[RADIO] Found: " + text);
+                        //resolve and add to queue
+                        const res = await ytsr(text, {
+                            limit: 1
+                        });
+                        if (res.items.length == 0) {
+                            console.log(`Kass jävla sökning, jag hittade inte ett skit. ${message.author}!`);
                         } else {
-                            // console.log('Vart fan vill du att jag ska då?');
+                            queueItem.type = "ytdl";
+                            queueItem.value = res.items[0].url;
+                            queue.push(queueItem);
+                            resolveQueue();
+                            queueItem = {
+                                type: null,
+                                value: null
+                            };
+
+                            if (!playing) {
+                                playFromQueue(message);
+                            } else {
+                                // console.log("Tillagd i kön.");
+                            }
                         }
+
+                    } else {
+                        // console.log('Vart fan vill du att jag ska då?');
                     }
 
-                }
-                logPrint("Hämtade " + --c + " låtar!");
-            })
-            .catch(function (err) {
-                //handle error
-                console.log(err);
-            });
+                });
+            });   
     }
 
     if (command === "roll") {
@@ -1141,41 +1127,41 @@ app.get('/preset', async (req, res) => {
             }
         } else if (req.query.id == 3) {
             console.log("radio");
-            await puppeteer
-                .launch()
-                .then(function (browser) {
-                    logPrint("Starting Browser!");
-                    return browser.newPage();
+            
+            let date = new Date();
+            let current = encodeURIComponent(date.toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm' }).substr(0,10) + " " + date.toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm' }).substr(11,8));
+            await fetch("https://listenapi.planetradio.co.uk/api9.2/events/rok/"+ current +"/25", {
+                "headers": {
+                    "accept": "application/json, text/plain, */*",
+                    "accept-language": "sv-SE,sv;q=0.9,en-US;q=0.8,en;q=0.7,de;q=0.6,ru;q=0.5",
+                    "cache-control": "no-cache",
+                    "pragma": "no-cache",
+                    "sec-ch-ua": "\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"90\", \"Google Chrome\";v=\"90\"",
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-fetch-dest": "empty",
+                    "sec-fetch-mode": "cors",
+                    "sec-fetch-site": "cross-site",
+                    "sec-gpc": "1"
+                },
+                "referrer": "https://radioplay.se/",
+                "referrerPolicy": "strict-origin-when-cross-origin",
+                "body": null,
+                "method": "GET",
+                "mode": "cors"
                 })
-                .then(function (page) {
-                    logPrint("Loading Page!");
-                    return page.goto(url, {
-                        waitUntil: 'networkidle2',
-                    }).then(function () {
-                        logPrint("Page Loaded!");
-                        return page.content();
-                    });
-                })
-                .then(function (html) {
-                    logPrint("Parsing Data!");
-                    $('.sc-1vr93bj-10', html).each(function () {
-                        radiodata.push($(this).text());
-                    });
-                }).then(async function () {
-                    let c = 1;
-                    for (let i = 0; i <= radiodata.length; i += 2) {
-    
-                        let text = radiodata[i] + " - " + radiodata[i + 1];
-    
-                        //Do not search for undefined
-                        if (!(typeof radiodata[i] == 'undefined' || typeof radiodata[i + 1] == 'undefined') && radiodata[i] != 'BauerMedia') {
-                            logPrint("Found: " + c++ + ": " + radiodata[i] + " - " + radiodata[i + 1]);
+                .then(res => res.json())
+                .then(json => {
+                    json.forEach(async element => {
+
+                        if (lastMessage.member.voice.channel) {
+                            let text = element.nowPlayingTrack + " - " +element.nowPlayingArtist;
+                            logPrint("[RADIO] Found: " + text);
                             //resolve and add to queue
                             const res = await ytsr(text, {
                                 limit: 1
                             });
                             if (res.items.length == 0) {
-                                console.log(`Kass jävla sökning, jag hittade inte ett skit. ${message.author}!`);
+                                console.log(`Kass jävla sökning, jag hittade inte ett skit.`);
                             } else {
                                 queueItem.type = "ytdl";
                                 queueItem.value = res.items[0].url;
@@ -1186,23 +1172,18 @@ app.get('/preset', async (req, res) => {
                                     value: null
                                 };
 
-                                busyAdd = false;
-
                                 if (!playing) {
                                     playFromQueue(lastMessage);
                                 } else {
                                     // console.log("Tillagd i kön.");
                                 }
                             }
-    
+
+                        } else {
+                            // console.log('Vart fan vill du att jag ska då?');
                         }
-    
-                    }
-                    logPrint("Hämtade " + --c + " låtar!");
-                })
-                .catch(function (err) {
-                    //handle error
-                    console.log(err);
+
+                    });
                 });
         }
     }
