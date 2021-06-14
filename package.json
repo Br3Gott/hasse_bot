@@ -4,8 +4,8 @@
   "description": "Best discord-bot on the internet",
   "main": "app.js",
   "dependencies": {
-    "@discordjs/opus": "^0.5.0",
-    "cheerio": "^1.0.0-rc.5",
+    "@discordjs/opus": "^0.5.3",
+    "cheerio": "^1.0.0-rc.10",
     "discord.js": "^12.5.1",
     "express": "^4.17.1",
     "ffmpeg-static": "^4.2.7",
@@ -16,9 +16,9 @@
     "request-promise": "^4.2.6",
     "say": "^0.16.0",
     "ytdl": "^1.4.1",
-    "ytdl-core": "^4.5.0",
-    "ytpl": "^2.0.5",
-    "ytsr": "^3.4.1"
+    "ytdl-core": "^4.8.2",
+    "ytpl": "^2.2.1",
+    "ytsr": "^3.5.0"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
