@@ -38,9 +38,9 @@ const ytpl = require('ytpl');
 const fetch = require('node-fetch');
 
 //Express webapp
-const express = require('express')
-const app = express()
-const port = 2345
+const express = require('express');
+const app = express();
+const port = 2345;
 let busyAdd = false;
 
 //App Variables
