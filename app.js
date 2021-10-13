@@ -9,8 +9,8 @@ TO DO:
 *ge mig <search_term> -> sök bild
 ---------------------------------------------------------*/
 //Discord init
-const Discord = require('discord.js');
-const client = new Discord.Client();
+const { Client, Intents } = require('discord.js');
+const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES] });
 const {
     prefix,
     token
@@ -72,6 +72,10 @@ var lastMessage = 0;
 //App is ready
 client.on('ready', () => {
     logPrint(`App started! Connected as BOT:[${client.user.tag}]`);
+});
+
+client.on('error', error => {
+    console.error('The WebSocket encountered an error:', error);
 });
 
 client.on('message', async message => {
@@ -853,9 +857,9 @@ async function playFromQueue(message, skip) {
         dispatcher.setVolume(0.1);
         dispatcher.on('error', (err) => {
             console.log(err);
-            message.member.voice.channel.leave();
-            playing = false;
-            return message.channel.send("Åh fy fan, jag satt i halsen!");
+            // message.member.voice.channel.leave();
+            // playing = false;
+            // return message.channel.send("Åh fy fan, jag satt i halsen!");
         });
         dispatcher.on('finish', () => {
             if (loop) {

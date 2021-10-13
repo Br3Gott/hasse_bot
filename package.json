@@ -4,19 +4,19 @@
   "description": "Best discord-bot on the internet",
   "main": "app.js",
   "dependencies": {
-    "@discordjs/opus": "^0.5.3",
-    "discord.js": "^12.5.1",
+    "@discordjs/opus": "^0.6.0",
+    "discord.js": "^12.5.3",
     "express": "^4.17.1",
-    "ffmpeg-static": "^4.2.7",
+    "ffmpeg-static": "^4.4.0",
     "lowdb": "^1.0.0",
     "node-fetch": "^2.6.1",
     "request": "^2.88.2",
     "request-promise": "^4.2.6",
     "say": "^0.16.0",
     "ytdl": "^1.4.1",
-    "ytdl-core": "^4.8.2",
-    "ytpl": "^2.2.1",
-    "ytsr": "^3.5.0"
+    "ytdl-core": "^4.9.1",
+    "ytpl": "^2.2.3",
+    "ytsr": "^3.5.3"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
