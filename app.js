@@ -53,11 +53,11 @@ client.on('interactionCreate', async interaction => {
             if(query != null) {
                 await playFromQueue(query, interaction);
             }  else {
-                await interaction.reply("Dude, i need something to search for...(Make sure you select search when running command.)")
+                await interaction.reply({content: "Dude, i need something to search for...(Make sure you select **search:** when running command.)", ephemeral: true})
             }
 
         } else {
-            await interaction.reply(`Join a voice channel first!`);
+            await interaction.reply({content: `Join a voice channel first!`, ephemeral: true});
         }
 
     }
