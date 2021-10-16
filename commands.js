@@ -11,6 +11,13 @@ const commands = [
     new SlashCommandBuilder().setName('test').setDescription('Replies with user test!'),
     new SlashCommandBuilder().setName('q').setDescription('Play music based on search query').addStringOption(option => option.setName('search').setDescription('Enter a search query')),
     new SlashCommandBuilder().setName('stop').setDescription('Stop music playback!'),
+    new SlashCommandBuilder().setName('play').setDescription('Start music playback!'),
+    new SlashCommandBuilder().setName('sq').setDescription('Show current queue.'),
+    new SlashCommandBuilder().setName('skip').setDescription('Skip current song!').addIntegerOption( option => option.setName('amount').setDescription('Amount of songs to skip.(Default: 1)')),
+    new SlashCommandBuilder().setName('clear').setDescription('Clear the queue!'),
+    new SlashCommandBuilder().setName('shuffle').setDescription('Shuffle the queue!'),
+    new SlashCommandBuilder().setName('klassiker').setDescription('Automatically queue and shuffle the classics playlist!'),
+    new SlashCommandBuilder().setName('zombies').setDescription('Automatically queue and shuffle the zombies playlist!'),
 ]
     .map(command => command.toJSON());
 
