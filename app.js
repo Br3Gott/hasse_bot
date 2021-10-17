@@ -1,4 +1,4 @@
-//TODO play / pause?
+//TODO add clear queue function
 //TODO loop-mode
 
 //Discord init
