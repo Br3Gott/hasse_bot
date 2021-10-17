@@ -18,6 +18,8 @@ const commands = [
     new SlashCommandBuilder().setName('shuffle').setDescription('Shuffle the queue!'),
     new SlashCommandBuilder().setName('klassiker').setDescription('Automatically queue and shuffle the classics playlist!'),
     new SlashCommandBuilder().setName('zombies').setDescription('Automatically queue and shuffle the zombies playlist!'),
+    new SlashCommandBuilder().setName('pause').setDescription('Pause the music!'),
+    new SlashCommandBuilder().setName('resume').setDescription('Resume the music!'),
 ]
     .map(command => command.toJSON());
 

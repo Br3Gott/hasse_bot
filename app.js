@@ -28,8 +28,11 @@ let nowPlayingItem = {
     link: ""
 }
 let playing = false;
+let paused = false;
 const playingStatus = 'something';
 const waitingStatus = 'eternal nothingness';
+
+const player = createAudioPlayer();
 
 let lastInteraction;
 
@@ -128,7 +131,7 @@ client.on('interactionCreate', async interaction => {
     }
     else if (commandName === 'sq') {
 
-        if(queue.length > 0) {
+        if(queue.length > 0 || playing) {
 
             let str = (`🎵 Now playing: ${nowPlayingItem.title}\n`);
 
@@ -187,7 +190,18 @@ client.on('interactionCreate', async interaction => {
 
         } else {
 
-            await interaction.reply({content: `Nothing to skip!`, ephemeral: true});
+            if(playing) {
+
+                const connection = getVoiceConnection(interaction.guildId);
+
+                playing = false;
+
+                connection.destroy();
+                client.user.setActivity(waitingStatus, {type: "LISTENING"});
+
+            }else {
+                await interaction.reply({content: `Nothing to skip!`, ephemeral: true});
+            }
 
         }
 
@@ -206,6 +220,26 @@ client.on('interactionCreate', async interaction => {
             await interaction.reply({content: `Nothing to shuffle!`, ephemeral: true});
 
         }
+
+    }
+    else if (commandName === 'pause') {
+        if(playing && !paused){
+            paused = true;
+            player.pause(true);
+            interaction.reply({content: `Paused the music!`, ephemeral: true});
+        } else {
+            interaction.reply({content: `Music not playing or already paused!`, ephemeral: true});
+        }
+    }
+    else if (commandName === 'resume') {
+        if(playing && paused) {
+            paused = false;
+            player.unpause();
+            interaction.reply({content: `Unpaused the music!`, ephemeral: true});
+        } else {
+            interaction.reply({content: `Music not playing or not paused!`, ephemeral: true});
+        }
+
 
     }
 });
@@ -289,7 +323,6 @@ async function playFromQueue() {
 
     const stream = ytdl(nowPlayingItem.link, { filter: 'audioonly' });
     const resource = createAudioResource(stream, { inputType: StreamType.Arbitrary });
-    const player = createAudioPlayer();
 
     player.play(resource);
     connection.subscribe(player);
