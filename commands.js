@@ -20,6 +20,7 @@ const commands = [
     new SlashCommandBuilder().setName('zombies').setDescription('Automatically queue and shuffle the zombies playlist!'),
     new SlashCommandBuilder().setName('pause').setDescription('Pause the music!'),
     new SlashCommandBuilder().setName('resume').setDescription('Resume the music!'),
+    new SlashCommandBuilder().setName('loop').setDescription('Toggle loop-mode!'),
 ]
     .map(command => command.toJSON());
 

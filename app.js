@@ -1,5 +1,4 @@
-//TODO add clear queue function
-//TODO loop-mode
+//TODO start work on web app integration
 
 //Discord init
 const { Client, Intents } = require('discord.js');
@@ -19,16 +18,13 @@ const {
 } = require('@discordjs/voice');
 
 let queue = [];
-let queueItem = {
-    title: "",
-    link: ""
-}
 let nowPlayingItem = {
     title: "",
     link: ""
 }
 let playing = false;
 let paused = false;
+let loop = false;
 const playingStatus = 'something';
 const waitingStatus = 'eternal nothingness';
 
@@ -113,6 +109,8 @@ client.on('interactionCreate', async interaction => {
 
             await interaction.reply({content: `Stopped playback!`, ephemeral: true});
 
+        } else {
+            await interaction.reply({content: `Nothing to stop!`, ephemeral: true});
         }
     }
     else if (commandName === 'play') {
@@ -135,7 +133,7 @@ client.on('interactionCreate', async interaction => {
 
             let str = (`🎵 Now playing: ${nowPlayingItem.title}\n`);
 
-            if (queue.length > 1) {
+            if (queue.length >= 1) {
                 str += (`🎶 Currently in queue: \n`);
                 let c = 1;
 
@@ -150,8 +148,9 @@ client.on('interactionCreate', async interaction => {
                 });
             }
 
-            if(queue.length > 10) {
-                str += "...";
+            if(queue.length > 5) {
+                str += `... \n`;
+                str += `(and ${queue.length} items in total)`;
             }
 
             interaction.reply({content: str, ephemeral: true});
@@ -174,17 +173,35 @@ client.on('interactionCreate', async interaction => {
                 counter = amount;
             }
             for (let i = 1; i < counter; i++) {
-                queue.shift();
+                if(loop) {
+                    let temp = queue.shift();
+                    queue.push({title: temp.title, link: temp.link});
+                } else {
+                    queue.shift();
+                }
             }
 
         }
 
         if(queue.length > 0){
             if(playing) {
+
+                if(loop) {
+                    let tempItem = {
+                        title: nowPlayingItem.title,
+                        link: nowPlayingItem.link
+                    }
+                    queue.push(tempItem);
+                }
                 await playFromQueue();
 
             } else {
-                queue.shift();
+                if(loop) {
+                    let temp = queue.shift();
+                    queue.push({title: temp.title, link: temp.link});
+                } else {
+                    queue.shift();
+                }
             }
             await interaction.reply({content: `Skipping current song!`, ephemeral: true});
 
@@ -198,6 +215,7 @@ client.on('interactionCreate', async interaction => {
 
                 connection.destroy();
                 client.user.setActivity(waitingStatus, {type: "LISTENING"});
+                await interaction.reply({content: `Skipping current song!`, ephemeral: true});
 
             }else {
                 await interaction.reply({content: `Nothing to skip!`, ephemeral: true});
@@ -242,12 +260,29 @@ client.on('interactionCreate', async interaction => {
 
 
     }
+    else if (commandName === 'clear') {
+        if(queue.length > 0) {
+            queue = [];
+            interaction.reply({content: `Queue is cleared!`, ephemeral: true});
+        } else {
+            interaction.reply({content: `Queue is empty!`, ephemeral: true});
+        }
+    }
+    else if (commandName === 'loop') {
+        if(!loop) {
+            loop = true;
+            interaction.reply({content: `Looping enabled!`, ephemeral: true});
+        } else {
+            loop = false;
+            interaction.reply({content: `Looping disabled!`, ephemeral: true});
+        }
+    }
 });
 
 client.login(token);
 
 
-//TODO return title instead of response
+//TODO return title instead of direct response
 async function addToQueue(input, interaction) {
     //check if the input contains a playlist link, a video link or a search query
     if(ytpl.validateID(input)) {
@@ -264,6 +299,8 @@ async function addToQueue(input, interaction) {
             queue.push(newItem);
         });
 
+        interaction.reply({content: `Added playlist: ${playlist.title} (${playlist.estimatedItemCount} videos)`, ephemeral: true});
+
     } else if (ytdl.validateURL(input)) {
 
         console.log("Found yt link!");
@@ -272,9 +309,7 @@ async function addToQueue(input, interaction) {
         const videoData = await ytdl.getBasicInfo(input)
         await interaction.reply({content: `Added: ${videoData.videoDetails.title}`, ephemeral: true});
 
-        queueItem.title = videoData.videoDetails.title;
-        queueItem.link = input;
-        queue.push(queueItem);
+        queue.push({title: videoData.videoDetails.title, link: input});
 
     } else {
 
@@ -291,13 +326,8 @@ async function addToQueue(input, interaction) {
 
             await interaction.reply({content: `Added: ${res.items[0].title}`, ephemeral: true});
 
-            // //reassign the found link to the input variable.
-            // input = res.items[0].url;
-
             //add to queue
-            queueItem.title = res.items[0].title;
-            queueItem.link = res.items[0].url;
-            queue.push(queueItem);
+            queue.push({title: res.items[0].title, link: res.items[0].url});
 
         } else {
             await interaction.reply({content: `No match for: ${input}`, ephemeral: true});
@@ -328,6 +358,14 @@ async function playFromQueue() {
     connection.subscribe(player);
 
     player.on(AudioPlayerStatus.Idle, () => {
+
+        if(loop) {
+            let tempItem = {
+                title: nowPlayingItem.title,
+                link: nowPlayingItem.link
+            }
+            queue.push(tempItem);
+        }
 
         if(queue.length > 0) {
             playFromQueue(interaction);
