@@ -53,9 +53,6 @@ client.on('interactionCreate', async interaction => {
     else if (commandName === 'user') {
         await interaction.reply({content: `Your tag: ${interaction.user.tag}\nYour id: ${interaction.user.id}`, ephemeral: true});
     }
-    else if (commandName === 'test') {
-        await interaction.reply(`test döh`);
-    }
     else if (commandName === 'q' || commandName === 'klassiker' || commandName === 'zombies') {
 
         if(interaction.member.voice.channelId != null) {

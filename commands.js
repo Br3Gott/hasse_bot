@@ -8,7 +8,6 @@ const commands = [
     new SlashCommandBuilder().setName('ping').setDescription('Replies with pong! (and server ws heartbeat)'),
     new SlashCommandBuilder().setName('server').setDescription('Replies with server info!'),
     new SlashCommandBuilder().setName('user').setDescription('Replies with user info!'),
-    new SlashCommandBuilder().setName('test').setDescription('Replies with user test!'),
     new SlashCommandBuilder().setName('q').setDescription('Play music based on search query').addStringOption(option => option.setName('search').setDescription('Enter a search query')),
     new SlashCommandBuilder().setName('stop').setDescription('Stop music playback!'),
     new SlashCommandBuilder().setName('play').setDescription('Start music playback!'),
