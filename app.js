@@ -1,10 +1,11 @@
 //TODO start work on web app integration
+//TODO look at .on event handler leak in playFromQueue()
 
 //Discord init
 const { Client, Intents } = require('discord.js');
 const { token } = require('./config.json');
 
-//Discord voice & ytdl & ytsr
+//Discord voice, ytdl , ytsr & ytpl
 const ytdl = require('ytdl-core');
 const ytsr = require('ytsr');
 const ytpl = require('ytpl');
@@ -17,6 +18,10 @@ const {
     getVoiceConnection,
 } = require('@discordjs/voice');
 
+//Easter eggs
+const imageSearch = require('image-search-engine');
+
+//Bot specific variables
 let queue = [];
 let nowPlayingItem = {
     title: "",
@@ -39,8 +44,18 @@ client.once('ready', () => {
     client.user.setActivity(waitingStatus, {type: "LISTENING"});
 });
 
+client.on('messageCreate', async message => {
+
+    let index = message.content.indexOf("ge mig");
+    if(index != -1 && message.type == 'DEFAULT') {
+        await message.reply(await imageSearch.find(message.content.substr(index), {size: "large"}));
+    }
+});
+
 client.on('interactionCreate', async interaction => {
-    if (!interaction.isCommand()) return;
+    if (!interaction.isCommand()) {
+        return;
+    }
 
     const { commandName } = interaction;
 

@@ -5,6 +5,7 @@
     "@discordjs/voice": "^0.6.0",
     "discord-api-types": "^0.23.1",
     "discord.js": "^13.2.0",
+    "image-search-engine": "^1.2.1",
     "libsodium-wrappers": "^0.7.9",
     "ytdl-core": "^4.9.1",
     "ytpl": "^2.2.3",
