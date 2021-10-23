@@ -1,5 +1,4 @@
 //TODO start work on web app integration
-//TODO look at .on event handler leak in playFromQueue()
 
 //Discord init
 const { Client, Intents } = require('discord.js');
@@ -40,12 +39,13 @@ let lastInteraction;
 const client = new Client({ intents: 641 });
 
 client.once('ready', () => {
-    console.log('Ready!');
+    console.log('Discord: Ready!');
     client.user.setActivity(waitingStatus, {type: "LISTENING"});
 });
 
 client.on('messageCreate', async message => {
 
+    //respond to messages containing 'ge mig x' with an image matching x
     let index = message.content.indexOf("ge mig");
     if(index != -1 && message.type == 'DEFAULT') {
         await message.reply(await imageSearch.find(message.content.substr(index), {size: "large"}));
@@ -85,7 +85,7 @@ client.on('interactionCreate', async interaction => {
                     search = 'https://www.youtube.com/watch?v=rDtDKuOGE40&list=PLphIVgFFFw7WnQ9A0tLRbcMEeufwnXqfK';
                 }
 
-                await addToQueue(search, interaction).then( async () => {
+                await addToQueue(search).then( async (res) => {
 
                     if(commandName === 'klassiker' || commandName === 'zombies') {
                         queue.sort(() => Math.random() - 0.5);
@@ -94,6 +94,8 @@ client.on('interactionCreate', async interaction => {
                     if(queue.length > 0 && !playing) {
                         await playFromQueue();
                     }
+
+                    lastInteraction.reply(res);
 
                 });
 
@@ -293,13 +295,9 @@ client.on('interactionCreate', async interaction => {
 
 client.login(token);
 
-
-//TODO return title instead of direct response
-async function addToQueue(input, interaction) {
+async function addToQueue(input) {
     //check if the input contains a playlist link, a video link or a search query
     if(ytpl.validateID(input)) {
-
-        console.log("Found playlist!");
 
         let playlist = await ytpl(input);
 
@@ -311,17 +309,16 @@ async function addToQueue(input, interaction) {
             queue.push(newItem);
         });
 
-        interaction.reply({content: `Added playlist: ${playlist.title} (${playlist.estimatedItemCount} videos)`, ephemeral: true});
+        return {content: `Added playlist: ${playlist.title} (${playlist.estimatedItemCount} videos)`, ephemeral: true};
 
     } else if (ytdl.validateURL(input)) {
 
-        console.log("Found yt link!");
-
         //fetch basic info so we can tell what we're playing
         const videoData = await ytdl.getBasicInfo(input)
-        await interaction.reply({content: `Added: ${videoData.videoDetails.title}`, ephemeral: true});
 
         queue.push({title: videoData.videoDetails.title, link: input});
+
+        return {content: `Added: ${videoData.videoDetails.title}`, ephemeral: true};
 
     } else {
 
@@ -336,13 +333,13 @@ async function addToQueue(input, interaction) {
                 res.items.shift();
             }
 
-            await interaction.reply({content: `Added: ${res.items[0].title}`, ephemeral: true});
-
             //add to queue
             queue.push({title: res.items[0].title, link: res.items[0].url});
 
+            return {content: `Added: ${res.items[0].title}`, ephemeral: true};
+
         } else {
-            await interaction.reply({content: `No match for: ${input}`, ephemeral: true});
+            return {content: `No match for: ${input}`, ephemeral: true};
         }
     }
 }
@@ -368,6 +365,9 @@ async function playFromQueue() {
 
     player.play(resource);
     connection.subscribe(player);
+
+    //Remove all previous listeners before registering new ones.
+    player.removeAllListeners(AudioPlayerStatus.Idle);
 
     player.on(AudioPlayerStatus.Idle, () => {
 
@@ -404,3 +404,74 @@ async function playFromQueue() {
 
 }
 
+//Express app
+const express = require('express');
+const {param} = require("express/lib/router");
+const app = express();
+let curr_con = null;
+
+app.get('/', (req, res) => {
+    let str = '';
+    const Guilds = client.guilds.cache.map(guild => guild.id);
+
+    // console.log(Guilds);
+    Guilds.forEach( (id) => {
+        const server = client.guilds.resolve(id);
+       // console.log(client.guilds.fetch(id));
+       // console.log(server.name);
+       str += `<a href="/server/${id}">${server.name}</a><br>`;
+    });
+    if(curr_con != null) {
+        str += `<a href="/disconnect">Disconnect from current!</a>`;
+    }
+    res.send(str);
+});
+
+app.get('/server/:id', (req, res) => {
+    let str = '';
+    const id = req.params.id;
+    // console.log(req);
+
+    const server = client.guilds.resolve(id);
+
+    let channels = server.channels.cache.map(channel => channel.id);
+
+    channels.forEach( (channel_id) => {
+        const channel = server.channels.resolve(channel_id)
+        if(channel.type === 'GUILD_VOICE') {
+            str += `<a href="/channel/${channel_id}/${id}">${channel.name}</a><br>`;
+        }
+    });
+
+    res.send(str);
+});
+
+app.get('/channel/:id/:server', (req, res) => {
+    res.redirect(`/`);
+
+    if (req.params.id != null && req.params.server != null) {
+        const channel = client.channels.resolve(req.params.id);
+        curr_con = {
+            channelId: req.params.id,
+            guildId: req.params.server,
+            adapterCreator: channel.guild.voiceAdapterCreator,
+        };
+        const connection = joinVoiceChannel(curr_con);
+    }
+
+});
+
+app.get('/disconnect', (req, res) => {
+    res.redirect(`/`);
+
+    if(curr_con != null) {
+        const connection = getVoiceConnection(curr_con.guildId);
+        connection.destroy();
+        curr_con = null;
+    }
+
+});
+
+app.listen(3000, () => {
+    console.log(`Web: Ready!`);
+});
