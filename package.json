@@ -8,7 +8,7 @@
     "express": "^4.17.1",
     "image-search-engine": "^1.2.1",
     "libsodium-wrappers": "^0.7.9",
-    "ytdl-core": "^4.9.1",
+    "ytdl-core": "^4.9.2",
     "ytpl": "^2.2.3",
     "ytsr": "^3.5.3"
   },
@@ -16,7 +16,6 @@
   "version": "2.0.0",
   "description": "A discord bot",
   "main": "app.js",
-  "devDependencies": {},
   "scripts": {
     "commands": "node commands.js",
     "start": "node app.js"
