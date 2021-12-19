@@ -1,0 +1,6 @@
+{
+	"clientId": "<clientId here>",
+	"guildId": "<guildId here>",
+	"prefix": "<prefix here>",
+	"token": "<bot token here>"
+}
