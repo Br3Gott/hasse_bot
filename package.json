@@ -11,5 +11,24 @@
     "ytdl-core": "^4.9.1",
     "ytpl": "^2.2.3",
     "ytsr": "^3.5.3"
-  }
+  },
+  "name": "hasse_bot",
+  "version": "2.0.0",
+  "description": "A discord bot",
+  "main": "app.js",
+  "devDependencies": {},
+  "scripts": {
+    "commands": "node commands.js",
+    "start": "node app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Br3Gott/hasse_bot.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Br3Gott/hasse_bot/issues"
+  },
+  "homepage": "https://github.com/Br3Gott/hasse_bot#readme"
 }
