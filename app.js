@@ -85,19 +85,19 @@ client.on('interactionCreate', async interaction => {
                     search = 'https://www.youtube.com/watch?v=rDtDKuOGE40&list=PLphIVgFFFw7WnQ9A0tLRbcMEeufwnXqfK';
                 }
 
-                await addToQueue(search).then( async (res) => {
 
-                    if(commandName === 'klassiker' || commandName === 'zombies') {
-                        queue.sort(() => Math.random() - 0.5);
-                    }
+                const res = await addToQueue(search);
 
-                    if(queue.length > 0 && !playing) {
-                        await playFromQueue();
-                    }
+                //This might not happen in the right order?
+                if(commandName === 'klassiker' || commandName === 'zombies') {
+                    queue.sort(() => Math.random() - 0.5);
+                }
 
-                    lastInteraction.reply(res);
+                if(queue.length > 0 && !playing) {
+                    await playFromQueue();
+                }
 
-                });
+                await interaction.reply(res);
 
 
             }  else {
