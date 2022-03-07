@@ -1,16 +1,16 @@
 {
   "dependencies": {
-    "@discordjs/builders": "^0.6.0",
-    "@discordjs/rest": "^0.1.0-canary.0",
-    "@discordjs/voice": "^0.6.0",
-    "discord-api-types": "^0.23.1",
-    "discord.js": "^13.2.0",
-    "express": "^4.17.1",
+    "@discordjs/builders": "^0.12.0",
+    "@discordjs/rest": "^0.3.0",
+    "@discordjs/voice": "^0.8.0",
+    "discord-api-types": "^0.28.0",
+    "discord.js": "^13.6.0",
+    "express": "^4.17.3",
     "image-search-engine": "^1.2.1",
     "libsodium-wrappers": "^0.7.9",
-    "ytdl-core": "^4.9.2",
-    "ytpl": "^2.2.3",
-    "ytsr": "^3.5.3"
+    "ytdl-core": "^4.11.0",
+    "ytpl": "^2.3.0",
+    "ytsr": "^3.6.0"
   },
   "name": "hasse_bot",
   "version": "2.0.0",
