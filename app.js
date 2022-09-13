@@ -36,19 +36,20 @@ const player = createAudioPlayer();
 
 let lastInteraction;
 
-const client = new Client({ intents: 641 });
+const client = new Client({ intents: 33477 });
 
 client.once('ready', () => {
     console.log('Discord: Ready!');
-    client.user.setActivity(waitingStatus, {type: "LISTENING"});
+    client.user.setPresence({ activities: [{ name: waitingStatus, type: 2 }] });
 });
 
 client.on('messageCreate', async message => {
 
     //respond to messages containing 'ge mig x' with an image matching x
     let index = message.content.indexOf("ge mig");
-    if(index != -1 && message.type == 'DEFAULT') {
-        await message.reply(await imageSearch.find(message.content.substr(index), {size: "large"}));
+    if(index != -1 && message.type == 0) {
+	let replyContent = await imageSearch.find(message.content.substr(index+7), {size:"large"});
+        await message.reply({ content: replyContent});
     }
 });
 
@@ -119,7 +120,7 @@ client.on('interactionCreate', async interaction => {
             playing = false;
 
             connection.destroy();
-            client.user.setActivity(waitingStatus, {type: "LISTENING"});
+            client.user.setPresence({ activities: [{ name: waitingStatus, type: 2 }] });
 
             await interaction.reply({content: `Stopped playback!`, ephemeral: true});
 
@@ -228,7 +229,8 @@ client.on('interactionCreate', async interaction => {
                 playing = false;
 
                 connection.destroy();
-                client.user.setActivity(waitingStatus, {type: "LISTENING"});
+                client.user.setPresence({ activities: [{ name: waitingStatus, type: 2 }] });
+
                 await interaction.reply({content: `Skipping current song!`, ephemeral: true});
 
             }else {
@@ -358,7 +360,7 @@ async function playFromQueue() {
         adapterCreator: interaction.guild.voiceAdapterCreator,
     });
 
-    client.user.setActivity(playingStatus, { type: 'LISTENING' });
+    client.user.setPresence({ activities: [{ name: playingStatus, type: 2 }] });
 
     const stream = ytdl(nowPlayingItem.link, { filter: 'audioonly' });
     const resource = createAudioResource(stream, { inputType: StreamType.Arbitrary });
@@ -384,7 +386,7 @@ async function playFromQueue() {
         } else {
             playing = false;
             connection.destroy();
-            client.user.setActivity(waitingStatus, {type: "LISTENING"});
+            client.user.setPresence({ activities: [{ name: waitingStatus, type: 2 }] });
         }
 
     });
@@ -398,7 +400,7 @@ async function playFromQueue() {
         } else {
             playing = false;
             connection.destroy();
-            client.user.setActivity(waitingStatus, {type: "LISTENING"});
+            client.user.setPresence({ activities: [{ name: waitingStatus, type: 2 }] });
         }
     });
 
@@ -472,6 +474,6 @@ app.get('/disconnect', (req, res) => {
 
 });
 
-app.listen(3000, () => {
+app.listen(3001, () => {
     console.log(`Web: Ready!`);
 });
