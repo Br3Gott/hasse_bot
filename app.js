@@ -5,7 +5,8 @@ const { Client, Intents } = require('discord.js');
 const { token } = require('./config.json');
 
 //Discord voice, ytdl , ytsr & ytpl
-const ytdl = require('ytdl-core');
+const ytdl = require('@distube/ytdl-core');
+// const ytdlexec = require('youtube-dl-exec');
 const ytsr = require('ytsr');
 const ytpl = require('ytpl');
 const {
@@ -19,6 +20,7 @@ const {
 
 //Easter eggs
 const imageSearch = require('image-search-engine');
+const gis = require('g-i-s');
 
 //Bot specific variables
 let queue = [];
@@ -34,6 +36,11 @@ const waitingStatus = 'eternal nothingness';
 
 const player = createAudioPlayer();
 
+const networkStateChangeHandler = (oldNetworkState, newNetworkState) => {
+    const newUdp = Reflect.get(newNetworkState, 'udp');
+    clearInterval(newUdp?.keepAliveInterval);
+}
+
 let lastInteraction;
 
 const client = new Client({ intents: 33477 });
@@ -46,10 +53,16 @@ client.once('ready', () => {
 client.on('messageCreate', async message => {
 
     //respond to messages containing 'ge mig x' with an image matching x
+    function reply(error, results) {
+        if (error) {
+            console.log(error);
+        } else {
+            message.reply({ content: results[0].url});
+        }
+    }
     let index = message.content.indexOf("ge mig");
-    if(index != -1 && message.type == 0) {
-	let replyContent = await imageSearch.find(message.content.substr(index+7), {size:"large"});
-        await message.reply({ content: replyContent});
+    if(index != -1 && message.type == 0 && message.content.substring(index+7) != "") {
+        gis(message.content.substring(index+7), reply);
     }
 });
 
@@ -360,9 +373,18 @@ async function playFromQueue() {
         adapterCreator: interaction.guild.voiceAdapterCreator,
     });
 
-    client.user.setPresence({ activities: [{ name: playingStatus, type: 2 }] });
+    // Fix for audio disappearing after a minute
+    connection.on('stateChange', (oldState, newState) => {
+        const oldNetworking = Reflect.get(oldState, 'networking');
+        const newNetworking = Reflect.get(newState, 'networking');
+    
+        oldNetworking?.off('stateChange', networkStateChangeHandler);
+        newNetworking?.on('stateChange', networkStateChangeHandler);
+    });
 
-    const stream = ytdl(nowPlayingItem.link, { filter: 'audioonly' });
+    client.user.setPresence({ activities: [{ name: nowPlayingItem.title, type: 2 }] });
+
+    const stream = ytdl(nowPlayingItem.link, { quality: "highestaudio", dlChunkSize: 0 });
     const resource = createAudioResource(stream, { inputType: StreamType.Arbitrary });
 
     player.play(resource);
