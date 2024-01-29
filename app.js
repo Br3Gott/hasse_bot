@@ -1,12 +1,13 @@
 //TODO start work on web app integration
 
+//TODO random react
+
 //Discord init
 const { Client, Intents } = require('discord.js');
 const { token } = require('./config.json');
 
 //Discord voice, ytdl , ytsr & ytpl
 const ytdl = require('@distube/ytdl-core');
-// const ytdlexec = require('youtube-dl-exec');
 const ytsr = require('ytsr');
 const ytpl = require('ytpl');
 const {
@@ -19,7 +20,6 @@ const {
 } = require('@discordjs/voice');
 
 //Easter eggs
-const imageSearch = require('image-search-engine');
 const gis = require('g-i-s');
 
 //Bot specific variables
@@ -31,7 +31,7 @@ let nowPlayingItem = {
 let playing = false;
 let paused = false;
 let loop = false;
-const playingStatus = 'something';
+const playingStatus = '🎵';
 const waitingStatus = 'eternal nothingness';
 
 const player = createAudioPlayer();
@@ -42,6 +42,8 @@ const networkStateChangeHandler = (oldNetworkState, newNetworkState) => {
 }
 
 let lastInteraction;
+let startReply;
+let showQueueReplies = [];
 
 const client = new Client({ intents: 33477 });
 
@@ -74,7 +76,15 @@ client.on('interactionCreate', async interaction => {
     const { commandName } = interaction;
 
     if (commandName === 'ping') {
-        await interaction.reply({content: `Pong! (${client.ws.ping}ms.)`, ephemeral: true});
+        let reply = await interaction.reply({ content: "Test hej", ephemeral: true });
+        let changeNo = 0;
+        let interval = setInterval(() => {
+            reply.edit("updated content: " + changeNo++);
+            if (changeNo > 10) {
+                clearInterval(interval);
+            }
+        }, 5000);
+        // await interaction.reply({content: `Pong! (${client.ws.ping}ms.)`, ephemeral: true});
     }
     else if (commandName === 'server') {
         await interaction.reply({content: `Server name: ${interaction.guild.name}\nTotal members: ${interaction.guild.memberCount}`, ephemeral: true});
@@ -99,7 +109,6 @@ client.on('interactionCreate', async interaction => {
                     search = 'https://www.youtube.com/watch?v=rDtDKuOGE40&list=PLphIVgFFFw7WnQ9A0tLRbcMEeufwnXqfK';
                 }
 
-
                 const res = await addToQueue(search);
 
                 //This might not happen in the right order?
@@ -111,7 +120,7 @@ client.on('interactionCreate', async interaction => {
                     await playFromQueue();
                 }
 
-                await interaction.reply(res);
+                startReply = await interaction.reply(res);
 
 
             }  else {
@@ -149,7 +158,7 @@ client.on('interactionCreate', async interaction => {
 
             playFromQueue();
 
-            await interaction.reply({content: `Started playback!`, ephemeral: true});
+            startReply = await interaction.reply({content: `Started playback!`, ephemeral: true});
         } else {
             await interaction.reply({content: `Nothing to play!`, ephemeral: true});
         }
@@ -159,32 +168,12 @@ client.on('interactionCreate', async interaction => {
 
         if(queue.length > 0 || playing) {
 
-            let str = (`🎵 Now playing: ${nowPlayingItem.title}\n`);
+            str = printQueue();
 
-            if (queue.length >= 1) {
-                str += (`🎶 Currently in queue: \n`);
-                let c = 1;
-
-                queue.forEach((item) => {
-                    if(c > 5) {
-                        return;
-                    } else {
-                        // str += (`${c}. [${item.title}](${item.link})\n`); //Print with hyperlinks.
-                        str += (`${c}. ${item.title}\n`); //Print with title only.
-                        c++;
-                    }
-                });
-            }
-
-            if(queue.length > 5) {
-                str += `... \n`;
-                str += `(and ${queue.length} items in total)`;
-            }
-
-            interaction.reply({content: str, ephemeral: true});
+            showQueueReplies.push(await interaction.reply({content: str, ephemeral: true}));
 
         } else {
-            interaction.reply({content: `🎶 Queue is empty.`, ephemeral: true});
+            await interaction.reply({content: `🎶 Queue is empty.`, ephemeral: true});
         }
 
     }
@@ -310,6 +299,32 @@ client.on('interactionCreate', async interaction => {
 
 client.login(token);
 
+function printQueue() {
+    let str = (`🎵 Now playing: ${nowPlayingItem.title}\n`);
+
+    if (queue.length >= 1) {
+        str += (`🎶 Currently in queue: \n`);
+        let c = 1;
+
+        queue.forEach((item) => {
+            if(c > 5) {
+                return;
+            } else {
+                // str += (`${c}. [${item.title}](${item.link})\n`); //Print with hyperlinks.
+                str += (`${c}. ${item.title}\n`); //Print with title only.
+                c++;
+            }
+        });
+    }
+
+    if(queue.length > 5) {
+        str += `... \n`;
+        str += `(and ${queue.length} items in total)`;
+    }
+
+    return str;
+}
+
 async function addToQueue(input) {
     //check if the input contains a playlist link, a video link or a search query
     if(ytpl.validateID(input)) {
@@ -382,7 +397,17 @@ async function playFromQueue() {
         newNetworking?.on('stateChange', networkStateChangeHandler);
     });
 
-    client.user.setPresence({ activities: [{ name: nowPlayingItem.title, type: 2 }] });
+    if (startReply) {
+        startReply.edit("Now playing: " + nowPlayingItem.title);
+    }
+
+    if (showQueueReplies.length > 0) {
+        showQueueReplies.forEach((reply) => {
+            reply.edit(printQueue());
+        });
+    }
+
+    client.user.setPresence({ activities: [{ name: playingStatus, type: 2 }] });
 
     const stream = ytdl(nowPlayingItem.link, { quality: "highestaudio", dlChunkSize: 0 });
     const resource = createAudioResource(stream, { inputType: StreamType.Arbitrary });
@@ -406,6 +431,7 @@ async function playFromQueue() {
         if(queue.length > 0) {
             playFromQueue(interaction);
         } else {
+            showQueueReplies = [];
             playing = false;
             connection.destroy();
             client.user.setPresence({ activities: [{ name: waitingStatus, type: 2 }] });
@@ -438,11 +464,8 @@ app.get('/', (req, res) => {
     let str = '';
     const Guilds = client.guilds.cache.map(guild => guild.id);
 
-    // console.log(Guilds);
     Guilds.forEach( (id) => {
         const server = client.guilds.resolve(id);
-       // console.log(client.guilds.fetch(id));
-       // console.log(server.name);
        str += `<a href="/server/${id}">${server.name}</a><br>`;
     });
     if(curr_con != null) {
@@ -454,7 +477,6 @@ app.get('/', (req, res) => {
 app.get('/server/:id', (req, res) => {
     let str = '';
     const id = req.params.id;
-    // console.log(req);
 
     const server = client.guilds.resolve(id);
 
@@ -462,7 +484,7 @@ app.get('/server/:id', (req, res) => {
 
     channels.forEach( (channel_id) => {
         const channel = server.channels.resolve(channel_id)
-        if(channel.type === 'GUILD_VOICE') {
+        if(channel.type === 2) {
             str += `<a href="/channel/${channel_id}/${id}">${channel.name}</a><br>`;
         }
     });
