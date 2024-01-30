@@ -2,6 +2,8 @@
 
 //TODO random react
 
+//TODO mjöl easter egg
+
 //Discord init
 const { Client, Intents } = require('discord.js');
 const { token } = require('./config.json');
@@ -18,6 +20,7 @@ const {
     joinVoiceChannel,
     getVoiceConnection,
 } = require('@discordjs/voice');
+const { createReadStream } = require('node:fs');
 
 //Easter eggs
 const gis = require('g-i-s');
@@ -31,7 +34,7 @@ let nowPlayingItem = {
 let playing = false;
 let paused = false;
 let loop = false;
-const playingStatus = '🎵';
+const playingStatus = '🎶';
 const waitingStatus = 'eternal nothingness';
 
 const player = createAudioPlayer();
@@ -66,6 +69,33 @@ client.on('messageCreate', async message => {
     if(index != -1 && message.type == 0 && message.content.substring(index+7) != "") {
         gis(message.content.substring(index+7), reply);
     }
+
+    if (
+        message.content.indexOf("mjöl") !== -1
+        && message.type === 0
+    ) {
+        // Only try to join the sender's voice channel if they are in one themselves
+        if (message.member.voice.channelId !== null) {
+
+            //For random sound clip
+            mjöl = Math.floor(Math.random() * 8);
+
+            let link = './mjöl/' + mjöl + '.mp3';
+
+            console.log("adding: " + link);
+
+            addToQueue(link, true);
+
+            lastInteraction = message;
+            await playFromQueue();
+
+        }
+    }
+
+    if ((Math.random() * 100) > 95) {
+        message.react('😎');
+    }
+
 });
 
 client.on('interactionCreate', async interaction => {
@@ -325,7 +355,27 @@ function printQueue() {
     return str;
 }
 
-async function addToQueue(input) {
+async function addToQueue(input, ee=false) {
+    // if input is ee, add path directly
+    if (ee) {
+
+        if (playing) {
+            queue.unshift({
+                title: nowPlayingItem.title,
+                link: nowPlayingItem.link,
+                type: nowPlayingItem.type
+            });
+        }
+
+        queue.unshift({
+            title: '😇',
+            link: input,
+            type: 'ee'
+        });
+
+        return;
+    }
+
     //check if the input contains a playlist link, a video link or a search query
     if(ytpl.validateID(input)) {
 
@@ -334,7 +384,8 @@ async function addToQueue(input) {
         playlist.items.forEach((item) => {
             let newItem = {
                 title: item.title,
-                link: item.shortUrl
+                link: item.shortUrl,
+                type: 'yt'
             }
             queue.push(newItem);
         });
@@ -346,7 +397,11 @@ async function addToQueue(input) {
         //fetch basic info so we can tell what we're playing
         const videoData = await ytdl.getBasicInfo(input)
 
-        queue.push({title: videoData.videoDetails.title, link: input});
+        queue.push({
+            title: videoData.videoDetails.title,
+            link: input,
+            type: 'yt'
+        });
 
         return {content: `Added: ${videoData.videoDetails.title}`, ephemeral: true};
 
@@ -364,7 +419,11 @@ async function addToQueue(input) {
             }
 
             //add to queue
-            queue.push({title: res.items[0].title, link: res.items[0].url});
+            queue.push({
+                title: res.items[0].title,
+                link: res.items[0].url,
+                type: 'yt'
+            });
 
             return {content: `Added: ${res.items[0].title}`, ephemeral: true};
 
@@ -382,6 +441,8 @@ async function playFromQueue() {
 
     nowPlayingItem = queue.shift();
 
+    console.log("new nowPlayingItem: " + nowPlayingItem.title + " with link: " + nowPlayingItem.link + " with type: " + nowPlayingItem.type);
+
     const connection = joinVoiceChannel({
         channelId: interaction.member.voice.channelId,
         guildId: interaction.guildId,
@@ -389,6 +450,7 @@ async function playFromQueue() {
     });
 
     // Fix for audio disappearing after a minute
+    connection.removeAllListeners('stateChange');
     connection.on('stateChange', (oldState, newState) => {
         const oldNetworking = Reflect.get(oldState, 'networking');
         const newNetworking = Reflect.get(newState, 'networking');
@@ -397,22 +459,59 @@ async function playFromQueue() {
         newNetworking?.on('stateChange', networkStateChangeHandler);
     });
 
-    if (startReply) {
-        startReply.edit("Now playing: " + nowPlayingItem.title);
-    }
+    client.user.setPresence({ activities: [{ name: playingStatus, type: 2 }] });
+
+    let ytresource = null;
+    let eeresource = null;
+
+    // if (startReply) {
+    //     startReply.edit("Now playing: " + nowPlayingItem.title);
+    // }
 
     if (showQueueReplies.length > 0) {
         showQueueReplies.forEach((reply) => {
-            reply.edit(printQueue());
+            try {
+                reply.edit(printQueue());
+            } catch (error) {
+                console.error(error);
+            }
         });
     }
 
-    client.user.setPresence({ activities: [{ name: playingStatus, type: 2 }] });
-
-    const stream = ytdl(nowPlayingItem.link, { quality: "highestaudio", dlChunkSize: 0 });
-    const resource = createAudioResource(stream, { inputType: StreamType.Arbitrary });
-
-    player.play(resource);
+    if (nowPlayingItem.type === 'yt') {
+    
+        const stream = ytdl(nowPlayingItem.link, { quality: "highestaudio", dlChunkSize: 0 });
+        stream.on('error', (error) => {
+            
+            console.log(error);
+            
+            if(queue.length > 0) {
+                playFromQueue();
+            } else {
+                playing = false;
+                connection.destroy();
+                client.user.setPresence({ activities: [{ name: waitingStatus, type: 2 }] });
+            }
+        });  
+        ytresource = createAudioResource(stream, {
+            inputType: StreamType.Arbitrary,
+            inlineVolume: true,
+            metadata: {
+                title: nowPlayingItem.title,
+            },
+        });
+        ytresource.volume.setVolume(0.005);
+    } else {
+        eeresource = createAudioResource(createReadStream(nowPlayingItem.link), {
+            inlineVolume: true,
+            metadata: {
+                title: 'Mjöl?',
+            },
+        });
+        eeresource.volume.setVolume(0.05);
+    }
+    
+    player.play(ytresource ?? eeresource);
     connection.subscribe(player);
 
     //Remove all previous listeners before registering new ones.
@@ -429,27 +528,15 @@ async function playFromQueue() {
         }
 
         if(queue.length > 0) {
-            playFromQueue(interaction);
+            playFromQueue();
         } else {
+            // TODO: clear nowplayingitem?
             showQueueReplies = [];
             playing = false;
             connection.destroy();
             client.user.setPresence({ activities: [{ name: waitingStatus, type: 2 }] });
         }
 
-    });
-
-    stream.on('error', (error) => {
-
-        console.log(error);
-
-        if(queue.length > 0) {
-            playFromQueue(interaction);
-        } else {
-            playing = false;
-            connection.destroy();
-            client.user.setPresence({ activities: [{ name: waitingStatus, type: 2 }] });
-        }
     });
 
 }
